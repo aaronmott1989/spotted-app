@@ -1043,6 +1043,7 @@
   }
   function syncOnEntry() {
     if (!CLOUD || !cloudUser) return;
+    flushPhotoQueue();                             // retry any photos that missed their upload
     if (isDirty()) { cloudPushNow(); return; }     // preserve unsynced local edits
     cloudPull().then(function (res) {
       if (res === "hit") refreshFromCloud();       // took newer server copy
@@ -1085,6 +1086,96 @@
     if (cloudPushTimer) { clearTimeout(cloudPushTimer); cloudPushTimer = null; }
     if (!CLOUD) return Promise.resolve();
     return sb.auth.signOut().catch(function () {});
+  }
+
+  /* ---- progress photos in private cloud storage (bucket "photos") ----
+     Object key is <user_id>/<date>__<angle>.jpg — the first path segment is the
+     user id, which is exactly what the storage RLS policy locks to (see
+     spotted-backend/schema.sql). IndexedDB stays the offline cache; these mirror
+     to the server so photos survive a lost device and follow the member. */
+  function dataUrlToBlob(dataUrl) {
+    var parts = String(dataUrl).split(","), meta = parts[0] || "", b64 = parts[1] || "";
+    var mime = (meta.match(/:(.*?);/) || [])[1] || "image/jpeg";
+    var bin = atob(b64), len = bin.length, arr = new Uint8Array(len);
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function (res, rej) {
+      var fr = new FileReader();
+      fr.onload = function () { res(fr.result); };
+      fr.onerror = function () { rej(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  function photoPath(date, angle) { return cloudUser.id + "/" + date + "__" + angle + ".jpg"; }
+  function cloudPhotoUpload(date, angle, dataUrl) {
+    if (!CLOUD || !cloudUser || !dataUrl) return Promise.resolve(false);
+    try {
+      var blob = dataUrlToBlob(dataUrl);
+      return sb.storage.from("photos").upload(photoPath(date, angle), blob, { contentType: "image/jpeg", upsert: true })
+        .then(function (r) { if (r && r.error) console.warn("[cloud] photo up:", r.error.message); return !(r && r.error); })
+        .catch(function (e) { console.warn("[cloud] photo up failed:", e); return false; });
+    } catch (e) { return Promise.resolve(false); }
+  }
+  function cloudPhotoDownload(date, angle) {
+    if (!CLOUD || !cloudUser) return Promise.resolve(null);
+    return sb.storage.from("photos").download(photoPath(date, angle))
+      .then(function (r) { return (r && r.data) ? blobToDataUrl(r.data) : null; })
+      .catch(function () { return null; });
+  }
+  function cloudPhotoDelete(date) {
+    if (!CLOUD || !cloudUser) return Promise.resolve();
+    var paths = ["front", "side", "back"].map(function (a) { return photoPath(date, a); });
+    return sb.storage.from("photos").remove(paths).catch(function () {});
+  }
+
+  /* Photo sync queue — a photo saved before the session is ready (or during a
+     dropped connection) can't just be uploaded once and forgotten. We persist a
+     small queue of pending uploads/deletes and flush it whenever a session
+     arrives or the network comes back, clearing each item only after it lands. */
+  var LS_PHOTO_Q = "spotted_photo_q";       // [{date,angle}] pending uploads
+  var LS_PHOTO_DELQ = "spotted_photo_delq"; // [date] pending cloud deletes
+  function qLoad(k) { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } }
+  function qSave(k, a) { try { localStorage.setItem(k, JSON.stringify(a)); } catch (e) {} }
+  function enqueuePhoto(date, angle) {
+    var q = qLoad(LS_PHOTO_Q);
+    if (!q.some(function (x) { return x.date === date && x.angle === angle; })) { q.push({ date: date, angle: angle }); qSave(LS_PHOTO_Q, q); }
+  }
+  function enqueuePhotoDelete(date) {
+    // A delete supersedes any pending upload for that date.
+    qSave(LS_PHOTO_Q, qLoad(LS_PHOTO_Q).filter(function (x) { return x.date !== date; }));
+    var q = qLoad(LS_PHOTO_DELQ);
+    if (q.indexOf(date) < 0) { q.push(date); qSave(LS_PHOTO_DELQ, q); }
+  }
+  var flushingPhotos = false;
+  function flushPhotoQueue() {
+    if (!CLOUD || !cloudUser || flushingPhotos) return;
+    if (!qLoad(LS_PHOTO_Q).length && !qLoad(LS_PHOTO_DELQ).length) return;
+    flushingPhotos = true;
+    var dels = qLoad(LS_PHOTO_DELQ);
+    var chain = dels.reduce(function (p, date) {
+      return p.then(function () {
+        return cloudPhotoDelete(date).then(function () {
+          qSave(LS_PHOTO_DELQ, qLoad(LS_PHOTO_DELQ).filter(function (d) { return d !== date; }));
+        });
+      });
+    }, Promise.resolve());
+    chain = qLoad(LS_PHOTO_Q).reduce(function (p, item) {
+      return p.then(function () {
+        return idbGet(item.date).then(function (rec) {
+          var dataUrl = rec && rec[item.angle];
+          if (!dataUrl) { // the image is gone locally — nothing to send
+            qSave(LS_PHOTO_Q, qLoad(LS_PHOTO_Q).filter(function (x) { return !(x.date === item.date && x.angle === item.angle); }));
+            return;
+          }
+          return cloudPhotoUpload(item.date, item.angle, dataUrl).then(function (ok) {
+            if (ok) qSave(LS_PHOTO_Q, qLoad(LS_PHOTO_Q).filter(function (x) { return !(x.date === item.date && x.angle === item.angle); }));
+          });
+        });
+      });
+    }, chain);
+    chain.then(function () { flushingPhotos = false; }, function () { flushingPhotos = false; });
   }
 
   /* ---- small helpers ---- */
@@ -1577,7 +1668,7 @@
           // "hit" hydrated local from the server; "empty" = new/unsynced account,
           // they'll build a plan and it seeds the server on first edit.
           save(LS_AUTH, { hash: hashPass(pass, email) });
-          setAuthed(true); hydrateForm(); enterApp();
+          setAuthed(true); hydrateForm(); enterApp(); flushPhotoQueue();
         });
       });
       return;
@@ -2437,8 +2528,15 @@
         renderCheckin();
       };
       if (hasPhotos) {
-        idbPut(today, { front: pendingPhotos.front, side: pendingPhotos.side, back: pendingPhotos.back })
-          .then(function () { commit(true); },
+        var shot = { front: pendingPhotos.front, side: pendingPhotos.side, back: pendingPhotos.back };
+        idbMerge(today, shot)   // merge, don't clobber other angles saved earlier today
+          .then(function () {
+            commit(true);
+            // Queue each new angle for private-cloud backup; the queue retries on
+            // session/reconnect so a photo saved before login still gets mirrored.
+            ["front", "side", "back"].forEach(function (a) { if (shot[a]) enqueuePhoto(today, a); });
+            flushPhotoQueue();
+          },
                 function () { toast("Photos couldn't be saved, but your check-in was.", "err", 3800); commit(false); });
       } else {
         // No new photos this time — keep any that already exist for this date.
@@ -2469,7 +2567,7 @@
         var removed = list[idx];
         list.splice(idx, 1);
         save(LS_CHECKINS, list);
-        if (removed && removed.hasPhotos) idbDel(removed.date);
+        if (removed && removed.hasPhotos) { idbDel(removed.date); enqueuePhotoDelete(removed.date); flushPhotoQueue(); }
         refreshMemberActivity();   // keep CRM weight/streak/adherence in sync with the delete
         renderCheckin();
       });
@@ -2987,6 +3085,24 @@
       });
     });
   }
+  // Merge non-null angles into the existing date record in ONE transaction, so a
+  // same-date re-save (or a concurrent cloud-cache write) can't wipe other angles.
+  function idbMerge(key, patch) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(PHOTO_STORE, "readwrite");
+        var store = tx.objectStore(PHOTO_STORE);
+        var g = store.get(key);
+        g.onsuccess = function () {
+          var cur = g.result || {};
+          Object.keys(patch).forEach(function (k) { if (patch[k] != null) cur[k] = patch[k]; });
+          store.put(cur, key);
+        };
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
   function idbGet(key) {
     return idbOpen().then(function (db) {
       return new Promise(function (res, rej) {
@@ -3042,6 +3158,24 @@
     return '<label class="photo-tile" data-angle="' + angle + '">' + tileInner(angle, label, pendingPhotos[angle]) + '</label>';
   }
 
+  // Load one date's photo for the current angle: IndexedDB first (instant,
+  // offline); if it's not here (e.g. a fresh device) pull it from cloud storage
+  // and cache it back into IndexedDB for next time.
+  function loadPhotoForAngle(date, angle) {
+    return idbGet(date).then(function (p) {
+      p = p || {};
+      if (p[angle]) return { date: date, p: p };
+      if (!CLOUD || !cloudUser) return { date: date, p: p };
+      return cloudPhotoDownload(date, angle).then(function (dataUrl) {
+        if (!dataUrl) return { date: date, p: p };
+        p[angle] = dataUrl;
+        var patch = {}; patch[angle] = dataUrl;
+        idbMerge(date, patch);           // cache for next time (atomic, no clobber)
+        return { date: date, p: p };
+      });
+    }).catch(function () { return { date: date, p: null }; });
+  }
+
   function loadProgressPhotos() {
     var body = document.getElementById("pg-body");
     if (!body) return;
@@ -3057,7 +3191,7 @@
     body.innerHTML = tabs + '<div class="ci-meta">Loading photos…</div>';
 
     Promise.all(entries.map(function (e) {
-      return idbGet(e.date).then(function (p) { return { date: e.date, p: p }; }, function () { return { date: e.date, p: null }; });
+      return loadPhotoForAngle(e.date, pgAngle);
     })).then(function (list) {
       var items = list.filter(function (x) { return x.p && x.p[pgAngle]; });
       var grid;
@@ -3591,6 +3725,8 @@
         if (isAuthed() && getMember()) syncOnEntry();
       }
     }).catch(function () {});
+    // Reconnect: flush any photos that couldn't upload while offline.
+    try { window.addEventListener("online", function () { flushPhotoQueue(); }); } catch (e) {}
   }
 })();
 </script>
