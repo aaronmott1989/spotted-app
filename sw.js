@@ -1,8 +1,12 @@
 /* Spotted service worker — caches the app shell for offline use.
-   Same-origin GETs are cache-first with a background refresh; cross-origin
-   requests (CDN pdf.js / tesseract.js used for plan uploads) go straight to
-   the network so offline mode never blocks them. Bump CACHE to invalidate. */
-var CACHE = "spotted-v3";
+   The app document (navigations) is NETWORK-FIRST so a returning member always
+   gets the latest build when online, and falls back to cache only when offline —
+   this closes the "stuck on a stale app after a deploy" trap. Static assets
+   (icons/manifest) stay cache-first with a background refresh for speed.
+   Cross-origin requests (CDN pdf.js / tesseract.js used for plan uploads) go
+   straight to the network so offline mode never blocks them. Bump CACHE to
+   invalidate. */
+var CACHE = "spotted-v4";
 var ASSETS = [
   "./spotted-app.html",
   "./manifest.webmanifest",
@@ -37,6 +41,26 @@ self.addEventListener("fetch", function (e) {
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== location.origin) return; // let CDN scripts hit the network directly
 
+  // The app document: NETWORK-FIRST. Always try the live app when online so a
+  // deploy is picked up immediately; fall back to the cached shell only offline.
+  if (req.mode === "navigate" || url.pathname.endsWith("/spotted-app.html")) {
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.status === 200 && res.type === "basic") {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () {
+        return caches.match(req).then(function (hit) {
+          return hit || caches.match("./spotted-app.html");
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else same-origin (icons/manifest): cache-first + background refresh.
   e.respondWith(
     caches.match(req).then(function (hit) {
       var net = fetch(req).then(function (res) {
@@ -45,10 +69,7 @@ self.addEventListener("fetch", function (e) {
           caches.open(CACHE).then(function (c) { c.put(req, copy); });
         }
         return res;
-      }).catch(function () {
-        // offline: fall back to cache, and for navigations serve the app shell
-        return hit || (req.mode === "navigate" ? caches.match("./spotted-app.html") : undefined);
-      });
+      }).catch(function () { return hit; });
       return hit || net;
     })
   );

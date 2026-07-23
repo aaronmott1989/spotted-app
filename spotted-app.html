@@ -1730,6 +1730,10 @@
     mainCarbG = Math.max(0, (p.carbs - bf.carb - fastCarb - fruitCarb - fatCarb)) / carbF.perG.carbG;
     mainCarbPro = mainCarbG * (carbF.perG.proG || 0);
     mainProG = Math.max(0, (p.protein - bf.pro - mainCarbPro - fastPro - fruitPro - fatPro)) / proF.perG.proG;
+    // Refresh the main protein's own fat off the Pass-B protein grams so the
+    // "fat delivered" readout below is exact. (The Pass-A mainProFat at line ~1721
+    // must stay as-is — line 1724 needs it to break the fat↔protein circularity.)
+    mainProFat = mainProG * (proF.perG.fatG || 0);
 
     var N = restr.mealsPerDay; if ([3,4,5,6].indexOf(N) < 0) N = 5;
     var namesByN = {
@@ -2047,7 +2051,7 @@
       var sets = 0, vol = 0;
       (s.exercises || []).forEach(function (ex) { ex.sets.forEach(function (st) { sets++; vol += (parseFloat(st.w) || 0) * (parseInt(st.r, 10) || 0); }); });
       html += '<div class="sess-row"><span class="ci-date">' + shortDate(s.date) + '</span>' +
-        '<span class="ci-meta">' + s.day + ' · ' + sets + ' sets · ' + Math.round(vol).toLocaleString() + ' lb volume</span>' +
+        '<span class="ci-meta">' + escapeHtml(s.day) + ' · ' + sets + ' sets · ' + Math.round(vol).toLocaleString() + ' lb volume</span>' +
         '<button class="ci-del wk-del" data-date="' + s.date + '" data-day="' + escapeAttr(s.day) + '" title="Delete" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">×</button></div>';
     });
     return html;
