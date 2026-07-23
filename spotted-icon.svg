@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Spotted">
+  <rect width="512" height="512" rx="96" fill="#0B0C0D"/>
+  <rect x="8" y="8" width="496" height="496" rx="90" fill="none" stroke="#1D2023" stroke-width="4"/>
+  <text x="50%" y="50%" dy="0.02em" text-anchor="middle" dominant-baseline="central"
+        font-family="Arial Narrow, Arial, Helvetica, sans-serif" font-weight="800"
+        font-size="300" letter-spacing="-6" fill="#F3F5F7">S<tspan fill="#8BFF1A">.</tspan></text>
+</svg>
