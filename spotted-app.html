@@ -795,6 +795,11 @@
   </footer>
 </div>
 
+<!-- Supabase client (pinned + SRI). If it fails to load or we're offline, the app
+     falls back to its local-only store — nothing here is required to run. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.js"
+        integrity="sha384-M65KxMm/JqBppck6onbmAgPVMBHrmPCf1L17Q+71EcvI9/VVI8j5cqoxQf6lj6h2"
+        crossorigin="anonymous"></script>
 <script>
 (function () {
   "use strict";
@@ -821,7 +826,7 @@
   // Returns true on success, false on failure. Callers that persist real member
   // data check this and surface an error instead of falsely reporting success.
   function save(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    try { localStorage.setItem(key, JSON.stringify(val)); cloudPush(); return true; }
     catch (e) {
       try { toast("Couldn't save — this device's storage may be full or blocked.", "err", 4200); } catch (_) {}
       return false;
@@ -924,6 +929,163 @@
   }
   function isAuthed() { try { return localStorage.getItem(LS_AUTHED) === "1"; } catch (e) { return false; } }
   function setAuthed(on) { try { if (on) localStorage.setItem(LS_AUTHED, "1"); else localStorage.removeItem(LS_AUTHED); } catch (e) {} }
+
+  /* ============================================================
+     CLOUD BACKEND (Supabase) — real accounts + server-side, RLS-protected
+     storage, layered ON TOP of the local-first store. localStorage stays the
+     instant offline cache; the UI never blocks on the network. Supabase is the
+     authoritative, cross-device copy. If the library/network is unavailable,
+     CLOUD is false and the app behaves exactly as it did before.
+     The publishable (anon) key below is safe to ship — Row-Level Security (see
+     spotted-backend/schema.sql) is what actually protects each member's data.
+     ============================================================ */
+  var SB_URL = "https://mtukfjdzsgsqcdfgmsir.supabase.co";
+  var SB_KEY = "sb_publishable_u5XL9NyrsqNKI6M1DuMH_w_e7wH1GiQ";
+  var sb = null;
+  try {
+    if (SB_URL && window.supabase && window.supabase.createClient) {
+      sb = window.supabase.createClient(SB_URL, SB_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, storageKey: "spotted_sb_auth" }
+      });
+    }
+  } catch (e) { sb = null; }
+  var CLOUD = !!sb;
+  var cloudUser = null;        // signed-in Supabase user, or null
+  var suspendPush = false;     // guard so a pull doesn't immediately echo back
+  var authGen = 0;             // bumped on logout to cancel in-flight auth calls
+  var LS_DIRTY = "spotted_dirty"; // set when local has edits not yet confirmed pushed
+  function markDirty() { try { localStorage.setItem(LS_DIRTY, "1"); } catch (e) {} }
+  function clearDirty() { try { localStorage.removeItem(LS_DIRTY); } catch (e) {} }
+  function isDirty() { try { return localStorage.getItem(LS_DIRTY) === "1"; } catch (e) { return false; } }
+
+  // The app-state LS keys that ride inside the members.app_state JSONB column.
+  function appStateKeys() {
+    return [LS_PROFILE, LS_INTAKE, LS_CARDIO_PREF, LS_CHECKINS, LS_WORKOUTS,
+            LS_PLAN_MODE, LS_CUSTOM_WORKOUT, LS_CUSTOM_MEALS, LS_MEAL_STYLE, LS_THEME];
+  }
+  // Build the full server row from local state. app_state stores each key's raw
+  // serialized string, so it round-trips back byte-for-byte on pull.
+  function cloudRowFromLocal() {
+    var m = getMember() || {};
+    var app = {};
+    appStateKeys().forEach(function (k) {
+      try { var v = localStorage.getItem(k); if (v != null) app[k] = v; } catch (e) {}
+    });
+    return {
+      user_id: cloudUser ? cloudUser.id : null,
+      email: (m.contact && m.contact.email) || (cloudUser && cloudUser.email) || null,
+      member_id: m.member_id || null,
+      identity: m.identity || {}, contact: m.contact || {}, status: m.status || {},
+      plan_snapshot: m.plan_snapshot || {}, activity: m.activity || {},
+      engagement: m.engagement || {}, open_questions: m.open_questions || [],
+      app_state: app
+    };
+  }
+
+  var cloudPushTimer = null;
+  function cloudPushNow() {
+    if (!CLOUD || !cloudUser) return Promise.resolve(false);
+    var row = cloudRowFromLocal();
+    if (!row.user_id) return Promise.resolve(false);
+    return sb.from("members").upsert(row, { onConflict: "user_id" })
+      .then(function (r) {
+        if (r && r.error) { console.warn("[cloud] push:", r.error.message); return false; }
+        clearDirty();                        // server now holds the latest local state
+        return true;
+      })
+      .catch(function (e) { console.warn("[cloud] push failed:", e); return false; });
+  }
+  function cloudPush() {                    // debounced, non-blocking
+    if (!CLOUD || !cloudUser || suspendPush) return;
+    markDirty();                            // local is ahead of the server until this flushes
+    if (cloudPushTimer) clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(function () { cloudPushTimer = null; cloudPushNow(); }, 900);
+  }
+
+  // Pull the authoritative server row into local state. Resolves to:
+  //   "hit"   — a server row existed and was written to local
+  //   "empty" — the member has no server row yet (nothing to pull)
+  //   "error" — network/permission failure (caller must NOT clobber local)
+  function cloudPull() {
+    if (!CLOUD || !cloudUser) return Promise.resolve("error");
+    return sb.from("members").select("*").eq("user_id", cloudUser.id).maybeSingle()
+      .then(function (r) {
+        if (r.error) return "error";
+        if (!r.data) return "empty";
+        var d = r.data, app = d.app_state || {};
+        suspendPush = true;
+        try {
+          appStateKeys().forEach(function (k) {
+            try { if (app[k] != null) localStorage.setItem(k, app[k]); } catch (e) {}
+          });
+          save(LS_MEMBER, {
+            member_id: d.member_id, created_at: d.created_at,
+            identity: d.identity || {}, contact: d.contact || {}, status: d.status || {},
+            plan_snapshot: d.plan_snapshot || {}, activity: d.activity || {},
+            engagement: d.engagement || {}, open_questions: d.open_questions || []
+          });
+        } finally { suspendPush = false; }
+        clearDirty();                        // local now matches the server copy
+        return "hit";
+      })
+      .catch(function (e) { console.warn("[cloud] pull failed:", e); return "error"; });
+  }
+
+  // On entering an authenticated session (session-restore or same-device login):
+  // if local has unsynced edits, push them up; otherwise take the server as the
+  // source of truth. Never blindly overwrites either side.
+  function refreshFromCloud() {
+    try {
+      hydrateForm(); renderAcctChip();
+      var t = document.querySelector('.tab-btn[aria-selected="true"]');
+      showView(t ? t.dataset.view : (load(LS_PROFILE, null) ? "meals" : "numbers"));
+    } catch (e) {}
+  }
+  function syncOnEntry() {
+    if (!CLOUD || !cloudUser) return;
+    if (isDirty()) { cloudPushNow(); return; }     // preserve unsynced local edits
+    cloudPull().then(function (res) {
+      if (res === "hit") refreshFromCloud();       // took newer server copy
+      else if (res === "empty") cloudPushNow();    // no server row yet — seed it from local
+      // "error": leave local untouched
+    });
+  }
+
+  function cloudSignUp(email, pass) {
+    if (!CLOUD) return Promise.resolve({ ok: false, skip: true });
+    var gen = ++authGen;
+    return sb.auth.signUp({ email: email, password: pass })
+      .then(function (r) {
+        if (gen !== authGen) return { ok: false, superseded: true };
+        if (r.error) return { ok: false, error: r.error.message };
+        var hasSession = !!(r.data && r.data.session);
+        // Only treat as signed-in (and safe to push under RLS) once a real
+        // session exists. With email-confirm ON, signUp returns a user but no
+        // session — pushing then would be RLS-denied and silently fail.
+        if (hasSession) cloudUser = (r.data && r.data.user) || null;
+        return { ok: true, session: hasSession };
+      })
+      .catch(function (e) { return { ok: false, error: String(e && e.message || e) }; });
+  }
+  function cloudSignIn(email, pass) {
+    if (!CLOUD) return Promise.resolve({ ok: false, skip: true });
+    var gen = ++authGen;
+    return sb.auth.signInWithPassword({ email: email, password: pass })
+      .then(function (r) {
+        if (gen !== authGen) return { ok: false, superseded: true };
+        if (r.error) return { ok: false, error: r.error.message };
+        cloudUser = (r.data && r.data.user) || null;
+        return { ok: true };
+      })
+      .catch(function (e) { return { ok: false, error: String(e && e.message || e) }; });
+  }
+  function cloudSignOut() {
+    authGen++;                               // cancel any in-flight sign-in/up
+    cloudUser = null;
+    if (cloudPushTimer) { clearTimeout(cloudPushTimer); cloudPushTimer = null; }
+    if (!CLOUD) return Promise.resolve();
+    return sb.auth.signOut().catch(function () {});
+  }
 
   /* ---- small helpers ---- */
   function trim(s) { return String(s == null ? "" : s).trim(); }
@@ -1381,18 +1543,43 @@
     if (!email || !pass) { err.textContent = "Enter your email and password."; return; }
     var existing = getMember();
     if (gateMode === "login") {
-      var auth = load(LS_AUTH, null);
-      var emailOk = existing && existing.contact && existing.contact.email &&
+      var sameDevice = existing && existing.contact && existing.contact.email &&
         existing.contact.email.toLowerCase() === email.toLowerCase();
-      if (!emailOk) { err.textContent = "No account found on this device with that email. Tap Sign up to create one."; return; }
-      // Verify against the stored hash. Legacy records with no _auth hash are let
-      // through once (pre-hash accounts) and upgraded to a hash on this login.
-      if (auth && auth.hash && auth.hash !== hashPass(pass, email)) {
-        err.textContent = "That password doesn't match. Try again."; return;
+      if (sameDevice) {
+        // SAME-DEVICE fast path: verify locally, unlock instantly, then quietly
+        // establish the server session and push the latest local copy up.
+        var auth = load(LS_AUTH, null);
+        if (auth && auth.hash && auth.hash !== hashPass(pass, email)) {
+          err.textContent = "That password doesn't match. Try again."; return;
+        }
+        if (!auth || !auth.hash) { save(LS_AUTH, { hash: hashPass(pass, email) }); }
+        existing.activity.last_login = todayISO(); save(LS_MEMBER, existing);
+        setAuthed(true); enterApp();
+        if (CLOUD) cloudSignIn(email, pass).then(function (r) {
+          if (r.ok) { syncOnEntry(); }
+          else if (!r.superseded) {
+            try { toast("You're unlocked offline, but the server couldn't verify this login — cloud backup is paused until you reconnect.", "err", 5500); } catch (e) {}
+          }
+        });
+        return;
       }
-      if (!auth || !auth.hash) { save(LS_AUTH, { hash: hashPass(pass, email) }); }
-      existing.activity.last_login = todayISO(); save(LS_MEMBER, existing);
-      setAuthed(true); enterApp();
+      // NEW DEVICE (no local record): authenticate against the server and pull
+      // this member's plan down. This is what makes accounts follow them.
+      if (!CLOUD) { err.textContent = "No account found on this device with that email. Tap Sign up to create one."; return; }
+      err.textContent = "Checking your account…";
+      cloudSignIn(email, pass).then(function (r) {
+        if (!r.ok) {
+          if (!r.superseded) err.textContent = "That email or password didn't match. Try again.";
+          return;
+        }
+        cloudPull().then(function (res) {
+          if (res === "error") { err.textContent = "Logged in, but couldn't load your plan yet. Check your connection and try again."; return; }
+          // "hit" hydrated local from the server; "empty" = new/unsynced account,
+          // they'll build a plan and it seeds the server on first edit.
+          save(LS_AUTH, { hash: hashPass(pass, email) });
+          setAuthed(true); hydrateForm(); enterApp();
+        });
+      });
       return;
     }
     var first = trim(document.getElementById("g-first").value);
@@ -1423,6 +1610,16 @@
     setAuthed(true);
     refreshMemberActivity();
     enterApp();
+    // Background: create the real server account and push the record up. Never
+    // blocks the UI, so this works offline and the local self-test stays green.
+    if (CLOUD) cloudSignUp(email, pass).then(function (r) {
+      if (r.ok && r.session) { cloudPushNow(); }
+      else if (r.ok && !r.session) {
+        try { toast("Account made. Check your email to confirm it and switch on cloud backup — your plan is saved on this device meanwhile.", "err", 6500); } catch (e) {}
+      } else if (r.error && /already|registered|exists/i.test(r.error)) {
+        try { toast("Looks like you already have an account — tap Log out, then Log in to sync your saved plan.", "err", 6000); } catch (e) {}
+      }
+    });
   }
   function enterApp() {
     document.body.classList.remove("gated");
@@ -1437,13 +1634,15 @@
     document.getElementById("logout-btn").addEventListener("click", function () {
       if (confirm("Log out? Your plan and history stay saved on this device — you'll just see the sign-in screen again.\n\n(To erase everything on this device instead, press Cancel here, then Cancel again.)")) {
         // Log out only: clear the session flag, keep every record intact.
+        cloudSignOut();
         setAuthed(false);
         document.body.classList.add("gated");
         gateMode = "login"; applyGateMode();
         return;
       }
       // Second prompt = the explicit, destructive "erase this device" path.
-      if (confirm("Erase ALL Spotted data on this device? This permanently deletes your account, plan, check-ins, and photos. This cannot be undone.")) {
+      if (confirm("Erase ALL Spotted data on this device? This clears your account, plan, check-ins, and photos from THIS device. (If you have a cloud account you can log back in on any device to restore it.)")) {
+        cloudSignOut();
         [LS_MEMBER, LS_AUTH, LS_AUTHED, LS_PROFILE, LS_INTAKE, LS_CARDIO_PREF, LS_CHECKINS,
          LS_WORKOUTS, LS_PLAN_MODE, LS_CUSTOM_WORKOUT, LS_CUSTOM_MEALS, LS_MEAL_STYLE].forEach(function (k) {
           try { localStorage.removeItem(k); } catch (e) {}
@@ -3380,6 +3579,19 @@
   }
   // PASS 2: register service worker + manifest here for PWA/offline install.
   initPWA();
+  // Background: restore a persisted Supabase session so cloud sync resumes after
+  // a reload without forcing re-login. Never blocks the local boot above.
+  if (CLOUD) {
+    var rgen = authGen;
+    sb.auth.getSession().then(function (r) {
+      if (rgen !== authGen) return;          // logged out before the session resolved
+      var s = r && r.data && r.data.session;
+      if (s && s.user) {
+        cloudUser = s.user;
+        if (isAuthed() && getMember()) syncOnEntry();
+      }
+    }).catch(function () {});
+  }
 })();
 </script>
 <script>
