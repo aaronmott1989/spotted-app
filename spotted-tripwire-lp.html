@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B0C0D">
+<title>Spotted — The Cut ($7)</title>
+<meta name="description" content="6 weeks to visible definition while you hold the strength you built. $7 once. 30-day money-back guarantee.">
+<!--
+  Spotted tripwire pre-sell page. ONE file, two offers.
+  Usage: point the Meta ad at   spotted-tripwire-lp.html?offer=cut    (default)
+                          or     spotted-tripwire-lp.html?offer=macro
+  Buyers go straight to the proven Gumroad checkout (Gumroad captures their email at purchase).
+  Non-buyers are caught by the inline opt-in + one exit-intent prompt -> they enter Sequence B.
+
+  === WIRING TODO (retention + security own this — see report) ===
+  Set LEAD_ENDPOINT below to a real capture endpoint before this goes live.
+  Contract: POST JSON { email, offer, source:"tripwire_lp", ts } ; any 2xx = success.
+  Recommended: Supabase `leads` table (anon key, insert-only RLS) OR a Cloudflare Worker -> Resend audience.
+  Capture is NON-BLOCKING: if it fails, the buyer still reaches checkout. No secret is committed here.
+-->
+<style>
+  :root{
+    --bg:#0B0C0D;
+    --bg2:#111316;
+    --card:#15181B;
+    --line:#23272C;
+    --lime:#8BFF1A;
+    --lime-ink:#0B0C0D;
+    --text:#F4F6F5;
+    --muted:#9AA1A6;
+    --red:#FF5A4D;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{color:inherit;}
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px;}
+  .kicker{
+    text-transform:uppercase;letter-spacing:.2em;font-size:12px;font-weight:800;
+    color:var(--lime);
+  }
+  h1{font-size:clamp(30px,8.4vw,46px);font-weight:850;letter-spacing:-.025em;line-height:1.08;}
+  h1 .hl{color:var(--lime);}
+  h2{font-size:clamp(23px,6.4vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.15;}
+  p{color:var(--text);}
+  .muted{color:var(--muted);}
+
+  /* top bar */
+  header{position:sticky;top:0;z-index:40;background:rgba(11,12,13,.82);backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);}
+  .bar{display:flex;align-items:center;justify-content:space-between;height:56px;}
+  .logo{font-weight:850;letter-spacing:-.02em;font-size:19px;}
+  .logo .dot{color:var(--lime);}
+  .pricepill{background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:13px;padding:7px 13px;border-radius:999px;letter-spacing:.01em;}
+
+  /* hero */
+  .hero{padding:38px 0 8px;background:
+      radial-gradient(120% 80% at 12% -10%, rgba(139,255,26,.10), transparent 60%),
+      radial-gradient(90% 60% at 100% 0%, rgba(139,255,26,.05), transparent 55%);}
+  .hero .sub{font-size:clamp(16px,4.4vw,19px);color:var(--text);margin-top:16px;font-weight:600;}
+  .hero .promise{color:var(--muted);margin-top:12px;font-size:15.5px;}
+
+  /* cta */
+  .cta{
+    display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+    background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:18px;
+    border:0;border-radius:14px;padding:17px 20px;cursor:pointer;text-decoration:none;
+    box-shadow:0 10px 30px rgba(139,255,26,.22);transition:transform .06s ease, box-shadow .2s ease;
+    letter-spacing:.01em;
+  }
+  .cta:active{transform:translateY(1px) scale(.995);}
+  .cta .arrow{font-weight:900;}
+  .ctanote{text-align:center;color:var(--muted);font-size:13px;margin-top:11px;}
+  .ctanote b{color:var(--text);}
+
+  /* trust strip */
+  .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 4px;}
+  .trust .t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;}
+  .trust .t .ic{color:var(--lime);font-size:16px;line-height:1;}
+  .trust .t .lbl{font-size:11.5px;font-weight:700;margin-top:6px;letter-spacing:.01em;}
+  .trust .t .sub{font-size:10.5px;color:var(--muted);margin-top:2px;}
+
+  section{padding:30px 0;}
+  .lead{font-size:17px;}
+  .divider{height:1px;background:var(--line);margin:0;border:0;}
+
+  /* value list */
+  .stack{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
+  .item{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;}
+  .item .chk{flex:0 0 22px;height:22px;border-radius:7px;background:rgba(139,255,26,.14);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;margin-top:1px;}
+  .item .txt b{display:block;font-size:15.5px;margin-bottom:2px;}
+  .item .txt span{color:var(--muted);font-size:14px;}
+
+  /* guarantee */
+  .guarantee{border:1.5px solid var(--lime);border-radius:var(--radius);padding:20px;background:linear-gradient(180deg, rgba(139,255,26,.06), transparent);}
+  .guarantee .g-h{display:flex;align-items:center;gap:10px;font-weight:850;font-size:17px;}
+  .guarantee .seal{flex:0 0 30px;height:30px;border-radius:50%;border:2px solid var(--lime);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
+  .guarantee p{margin-top:10px;color:var(--muted);font-size:14.5px;}
+
+  /* why $7 */
+  .why{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+  .why b{color:var(--text);}
+
+  /* app handoff */
+  .app{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+  .app .tag{color:var(--lime);font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+
+  /* inline opt-in */
+  .optin{background:var(--bg2);border:1px dashed #2e343a;border-radius:var(--radius);padding:20px;}
+  .optin h3{font-size:18px;font-weight:800;}
+  .optin p{color:var(--muted);font-size:14px;margin-top:6px;}
+  form.cap{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  form.cap input[type=email]{flex:1 1 200px;min-width:0;background:#0e1012;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:14px 14px;font-size:16px;}
+  form.cap input[type=email]:focus{outline:none;border-color:var(--lime);}
+  form.cap button{flex:0 0 auto;background:var(--lime);color:var(--lime-ink);font-weight:850;border:0;border-radius:11px;padding:0 18px;font-size:15px;cursor:pointer;}
+  .capdone{color:var(--lime);font-weight:700;font-size:14.5px;margin-top:12px;display:none;}
+
+  /* faq */
+  details{border:1px solid var(--line);border-radius:12px;padding:0 16px;margin-top:10px;background:var(--card);}
+  details summary{list-style:none;cursor:pointer;padding:15px 0;font-weight:700;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary .plus{color:var(--lime);font-weight:900;font-size:20px;transition:transform .2s;}
+  details[open] summary .plus{transform:rotate(45deg);}
+  details .ans{color:var(--muted);font-size:14.5px;padding:0 0 16px;}
+
+  .finalcta{text-align:center;padding:34px 0 40px;}
+  .finalcta h2{margin-bottom:18px;}
+
+  footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:12.5px;text-align:center;}
+  footer a{color:var(--muted);text-decoration:underline;}
+
+  /* sticky mobile buy bar */
+  .stickybuy{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(11,12,13,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 20px calc(10px + env(safe-area-inset-bottom));transform:translateY(120%);transition:transform .25s ease;}
+  .stickybuy.show{transform:translateY(0);}
+  .stickybuy .cta{font-size:16px;padding:14px 18px;}
+
+  /* modal */
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.66);display:none;align-items:flex-end;justify-content:center;}
+  .modal.show{display:flex;}
+  .sheet{background:var(--bg2);border-top-left-radius:22px;border-top-right-radius:22px;border:1px solid var(--line);border-bottom:0;width:100%;max-width:640px;padding:24px 22px calc(26px + env(safe-area-inset-bottom));animation:up .25s ease;}
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet h3{font-size:21px;font-weight:850;letter-spacing:-.01em;}
+  .sheet p{color:var(--muted);font-size:14.5px;margin-top:8px;}
+  .sheet .skip{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:14px;text-decoration:underline;cursor:pointer;}
+  @media(min-width:560px){.modal{align-items:center;}.sheet{border-radius:22px;border-bottom:1px solid var(--line);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="logo">Spotted<span class="dot">.</span></div>
+    <div class="pricepill">$7 · one time</div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <div class="kicker" id="k-kicker">Spotted · The Cut</div>
+    <h1 id="k-h1" style="margin-top:14px;">Cuts don't fail in the kitchen. <span class="hl">They fail at week 6.</span></h1>
+    <p class="sub" id="k-sub">6 weeks to visible definition — while you hold the strength you built.</p>
+    <p class="promise" id="k-promise">You don't lose muscle because you cut. You lose it because nobody tells you what to change in week 6 when the scale stalls. This is the dated, day-by-day plan that does.</p>
+    <div style="margin-top:24px;">
+      <a class="cta" data-buy href="#"><span>Start The Cut — $7</span> <span class="arrow">→</span></a>
+      <div class="ctanote"><b>Instant download.</b> 30-day, no-questions money-back guarantee.</div>
+    </div>
+    <div class="trust">
+      <div class="t"><div class="ic">↓</div><div class="lbl">Instant access</div><div class="sub">Delivered on the spot</div></div>
+      <div class="t"><div class="ic">↺</div><div class="lbl">30-day refund</div><div class="sub">No questions asked</div></div>
+      <div class="t"><div class="ic">$</div><div class="lbl">$7 once</div><div class="sub">No subscription</div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- PROBLEM -->
+<section>
+  <div class="wrap">
+    <h2 id="k-prob-h">Week 6 is where it dies.</h2>
+    <p class="lead muted" id="k-prob-b" style="margin-top:14px;">The first two weeks feel great. Then week six shows up: the scale stalls, your lifts dip, you feel flat and hungry. Most people panic-slash calories and tank their strength, or quit and bulk over the softness they were trying to lose. You didn't fail in the kitchen. You failed at week six, because nobody told you what to change when it got hard. This closes that gap.</p>
+  </div>
+</section>
+
+<!-- VALUE STACK -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>What you get <span class="muted" style="font-size:15px;font-weight:600;">(instant download)</span></h2>
+    <div class="stack" id="k-stack">
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>Your cutting numbers, explained</b><span>Deficit, protein floor, macro split — with a worked example so you understand it, not just copy it.</span></div></div>
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>The Adjustment Rule</b><span>The exact call for when the scale stalls (no movement in 10 days → drop 150 cal OR add 1,500 steps, not both). The one page that's the difference between finishing and quitting.</span></div></div>
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>A dated 6-week training + cardio calendar</b><span>Built to protect your strength: hold your heavy top sets, trim the junk volume, cardio dosed day by day.</span></div></div>
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>The "week 6–8 survival" page</b><span>The exact stretch that makes most people quit, handled: when to refeed, how to use steps, why sleep matters more than you think.</span></div></div>
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>Real food, three ways</b><span>Swap tables and meals at three effort levels (lazy / normal / cooking), plus how to stay on plan eating out.</span></div></div>
+      <div class="item"><div class="chk">✓</div><div class="txt"><b>A weekly tracker + a coach's note on every section</b><span>Read the trend instead of panicking at one bad morning, and always know why you're doing it.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- GUARANTEE -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="guarantee">
+      <div class="g-h"><span class="seal">✓</span> Your $7 is protected.</div>
+      <p><b style="color:var(--text)">30-day, 100% money-back, no-questions-asked.</b> Read it, use it, and if it doesn't give you a clearer cut than whatever you're doing now, email <a style="color:var(--lime)" href="mailto:support@spotted.coach">support@spotted.coach</a> and get every cent back. You keep the plan. The only risk here is another month of guessing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WHY $7 -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="why">
+      <h2 style="font-size:22px;">Why $7?</h2>
+      <p class="muted" style="margin-top:12px;" id="k-why">A cut coach charges $150+/month mostly to adjust your numbers and talk you off the ledge. A free plan online hands you a deficit and vanishes right when it gets hard. This is <b>$7, once,</b> for the full 6-week plan, the day-by-day cardio, and the Adjustment Rule free plans refuse to include. Seven dollars vs. another failed cut that costs you months of progress. Easy math.</p>
+    </div>
+  </div>
+</section>
+
+<!-- APP HANDOFF -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="app">
+      <div class="tag">What happens after</div>
+      <h2 style="font-size:21px;margin-top:8px;" id="k-app-h">When the 6 weeks end, the Spotted app takes over.</h2>
+      <p class="muted" style="margin-top:10px;" id="k-app-b">It recalculates your macros and cardio the moment your weight stalls, and Spot — your accountability partner — checks in on you through the weeks most people quit. This plan is your map. The app adapts it the rest of the way.</p>
+    </div>
+  </div>
+</section>
+
+<!-- INLINE OPT-IN (non-buyer capture) -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="optin">
+      <h3 id="k-opt-h">Not ready to buy? Take the free Week-6 cheat sheet.</h3>
+      <p id="k-opt-p">The one page free plans skip: exactly what to change when the scale stalls. We'll email it to you, plus a couple of genuinely useful cut breakdowns. No spam, unsubscribe anytime.</p>
+      <form class="cap" data-cap>
+        <input type="email" required placeholder="you@email.com" aria-label="Your email">
+        <button type="submit">Send it</button>
+      </form>
+      <div class="capdone" data-capdone>✓ On its way. Check your inbox in a minute.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div id="k-faq">
+      <details><summary>Will I lose muscle on this? <span class="plus">+</span></summary><div class="ans">The whole plan is built to prevent exactly that. You keep your heavy top sets, protein is set high on purpose, and the deficit is aggressive enough to see definition but not so aggressive it eats your strength. That balance is the entire point.</div></details>
+      <details><summary>I've never cut before. Is this too advanced? <span class="plus">+</span></summary><div class="ans">No. It's dated and day-by-day, so you always know what to do. Every section has a coach's note explaining why, so you learn as you go instead of blindly following.</div></details>
+      <details><summary>What happens in week 6 when the scale stalls? <span class="plus">+</span></summary><div class="ans">That's the whole reason this plan exists. The Adjustment Rule and the "week 6–8 survival" page tell you exactly what to change, so a stall becomes a step instead of the moment you quit.</div></details>
+      <details><summary>How do I get it? <span class="plus">+</span></summary><div class="ans">Instant download after a $7 checkout. Yours to keep. Backed by a 30-day, no-questions money-back guarantee.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<div class="finalcta">
+  <div class="wrap">
+    <h2 id="k-final">See definition. Keep your lifts. Finally finish a cut.</h2>
+    <a class="cta" data-buy href="#"><span>Start The Cut — $7</span> <span class="arrow">→</span></a>
+    <div class="ctanote">30-day money-back guarantee · instant download</div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:16px;justify-content:center;">Spotted<span class="dot">.</span></div>
+    <p style="margin-top:8px;">A Spotted plan for every lifter. Questions? <a href="mailto:support@spotted.coach">support@spotted.coach</a></p>
+    <p style="margin-top:6px;">Secure checkout by Gumroad.</p>
+  </div>
+</footer>
+
+<!-- sticky mobile buy bar -->
+<div class="stickybuy" id="stickybuy">
+  <div class="wrap" style="padding:0;">
+    <a class="cta" data-buy href="#"><span>Start The Cut — $7</span> <span class="arrow">→</span></a>
+  </div>
+</div>
+
+<!-- exit-intent / non-buyer capture modal -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3 id="k-m-h">Before you go — grab the free Week-6 cheat sheet.</h3>
+    <p id="k-m-p">The one page free plans skip: exactly what to change when the scale stalls and most people quit. We'll email it to you free. No spam.</p>
+    <form class="cap" data-cap style="margin-top:16px;">
+      <input type="email" required placeholder="you@email.com" aria-label="Your email">
+      <button type="submit">Email me the cheat sheet</button>
+    </form>
+    <div class="capdone" data-capdone>✓ On its way. Check your inbox in a minute.</div>
+    <span class="skip" id="modalskip">No thanks, take me to the $7 plan</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- WIRING: set this to a real capture endpoint before launch (see head comment) ----
+  var LEAD_ENDPOINT = "https://mtukfjdzsgsqcdfgmsir.supabase.co/functions/v1/capture-lead"; // Supabase Edge Function: insert-only (service role, RLS-locked leads table) + sends the free Week-6 cheat sheet via Resend. No secret exposed here. empty = capture stubbed, buy flow still works
+
+  // ---- Offer config: one page, two live ad sets ----
+  var OFFERS = {
+    cut: {
+      title: "Spotted — The Cut ($7)",
+      checkout: "https://amottster.gumroad.com/l/thenatualcut"
+    },
+    macro: {
+      title: "Spotted — The Macro Blueprint ($7)",
+      checkout: "https://amottster.gumroad.com/l/macros",
+      kicker: "Spotted · The Macro Blueprint",
+      h1: 'Your macros were right. <span class="hl">For two weeks.</span>',
+      sub: "Your exact calories, macros, and cardio in 60 seconds — that fix themselves when the scale stalls.",
+      promise: "A macro number is only right for about two weeks. Your body adapts, the perfect number becomes wrong, and nobody hands you the next one. That's not a discipline problem. It's a math problem nobody solved for you. This solves it.",
+      buy: "Get The Macro Blueprint — $7",
+      probH: "The number was right. For two weeks.",
+      probB: "Stop guessing what to eat. Stop training off a number some website spat out two years ago. Put in your stats and your goal, walk away in one minute knowing exactly what to eat and how much cardio to do — built for a real lifter, not a generic chart. Then the second you drop fat or add muscle, that perfect number goes wrong. This gives you the number and the rule for the next one.",
+      whyH: "Why $7?",
+      why: 'A coach charges $100–$200 a month partly just to set and re-set these numbers. Every free calculator hands you a number and abandons you — and that number is wrong inside three weeks. This is <b>$7, once,</b> and it does the thing the free ones refuse to: it gives you the number and the rule for the next one.',
+      appH: "When you stall for the third or fourth time, the Spotted app takes over.",
+      appB: "It recalculates your macros and cardio every time your weight trend stalls, so you never run the math yourself again. This Blueprint is your free sample of that.",
+      optH: "Not ready to buy? Take the free Adjustment Rule.",
+      optP: "The one page every free calculator skips: exactly what to change when the scale stalls. We'll email it to you, plus a couple of genuinely useful breakdowns. No spam, unsubscribe anytime.",
+      mH: "Before you go — grab the free Adjustment Rule.",
+      mP: "The one page free calculators skip: exactly what to change when the scale stalls. We'll email it to you free. No spam.",
+      final: "Know your numbers. Finally built for you.",
+      stack: [
+        ["The interactive calculator","Enter your stats and goal, get your calories, protein, carbs, fats, and cardio in about 60 seconds. Works for cutting, lean bulking, or holding."],
+        ["Your protein floor, set for you","The single number most people get wrong, calculated from your bodyweight so you keep the muscle you're paying for."],
+        ["Cardio dosed, not guessed","Matched to your goal, so you burn fat without burning your recovery."],
+        ["The Adjustment Rule","The part free calculators skip: exactly what to change when the scale stops moving. Built right into the tool."]
+      ],
+      faq: [
+        ["Is this just another macro calculator?","No. Free calculators hand you one number and leave. This gives you your numbers plus the Adjustment Rule for what to change when the scale stalls — the part that actually keeps progress going."],
+        ["I don't compete. Is this still for me?","Yes. It works for anyone who trains and wants to cut, lean bulk, or maintain. You don't need a stage or a six-day split. You need your real numbers, and this gives them to you."],
+        ["Do I have to count every calorie forever?","No. It shows you how to hit your numbers without turning food into a full-time job."],
+        ["How do I get it?","Instant access after a $7 checkout. Backed by a 30-day, no-questions money-back guarantee."]
+      ]
+    }
+  };
+
+  function qp(n){ return new URLSearchParams(location.search).get(n); }
+  var key = (qp("offer") || "cut").toLowerCase();
+  var o = OFFERS[key] || OFFERS.cut;
+
+  // apply offer config (cut is already the default markup)
+  function set(id, html){ var el=document.getElementById(id); if(el && html!=null) el.innerHTML=html; }
+  document.title = o.title;
+  if(key !== "cut"){
+    set("k-kicker", o.kicker); set("k-h1", o.h1); set("k-sub", o.sub); set("k-promise", o.promise);
+    set("k-prob-h", o.probH); set("k-prob-b", o.probB);
+    set("k-why", o.why); set("k-app-h", o.appH); set("k-app-b", o.appB);
+    set("k-opt-h", o.optH); set("k-opt-p", o.optP); set("k-m-h", o.mH); set("k-m-p", o.mP);
+    set("k-final", o.final);
+    var whyH = document.querySelector("#k-why"); // why heading text stays "Why $7?"
+    // stack
+    if(o.stack){ document.getElementById("k-stack").innerHTML = o.stack.map(function(s){
+      return '<div class="item"><div class="chk">✓</div><div class="txt"><b>'+s[0]+'</b><span>'+s[1]+'</span></div></div>';
+    }).join(""); }
+    // faq
+    if(o.faq){ document.getElementById("k-faq").innerHTML = o.faq.map(function(f){
+      return '<details><summary>'+f[0]+' <span class="plus">+</span></summary><div class="ans">'+f[1]+'</div></details>';
+    }).join(""); }
+    // buy button labels
+    document.querySelectorAll('[data-buy] span:first-child').forEach(function(s){ s.textContent = o.buy; });
+    document.querySelectorAll('#stickybuy [data-buy] span:first-child').forEach(function(s){ s.textContent = o.buy; });
+  }
+
+  // ---- buy: straight to the proven Gumroad checkout (no friction for buyers) ----
+  function goCheckout(){
+    try{ if(window.fbq) fbq('track','InitiateCheckout'); }catch(e){}
+    location.href = o.checkout;
+  }
+  document.querySelectorAll('[data-buy]').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); goCheckout(); });
+  });
+
+  // ---- email capture (non-blocking) ----
+  function capture(email, ctx){
+    var payload = { email: email, offer: key, source: "tripwire_lp", context: ctx, ts: Date.now() };
+    try{ localStorage.setItem('spotted_lead', email); }catch(e){}
+    try{ if(window.fbq) fbq('track','Lead'); }catch(e){}
+    if(!LEAD_ENDPOINT) return Promise.resolve(); // stubbed until wired
+    return fetch(LEAD_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).catch(function(){});
+  }
+  document.querySelectorAll('form[data-cap]').forEach(function(f){
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var input = f.querySelector('input[type=email]');
+      var email = (input.value||'').trim();
+      if(!email || email.indexOf('@')<1) { input.focus(); return; }
+      capture(email, f.closest('#modal') ? 'exit_modal' : 'inline');
+      f.style.display='none';
+      var done = f.parentElement.querySelector('[data-capdone]');
+      if(done) done.style.display='block';
+      try{ localStorage.setItem('spotted_captured','1'); }catch(e){}
+    });
+  });
+
+  // ---- sticky mobile buy bar: show after hero scrolls out ----
+  var sticky = document.getElementById('stickybuy');
+  var hero = document.querySelector('.hero');
+  if('IntersectionObserver' in window && hero){
+    new IntersectionObserver(function(ents){
+      ents.forEach(function(en){ sticky.classList.toggle('show', !en.isIntersecting); });
+    },{rootMargin:'-60px 0px 0px 0px'}).observe(hero);
+  }
+
+  // ---- exit-intent / non-buyer prompt: once per visitor ----
+  var modal = document.getElementById('modal');
+  var shown = false;
+  function alreadyDone(){ try{ return localStorage.getItem('spotted_captured')==='1' || sessionStorage.getItem('spotted_modal')==='1'; }catch(e){ return false; } }
+  function showModal(){
+    if(shown || alreadyDone()) return;
+    shown = true;
+    try{ sessionStorage.setItem('spotted_modal','1'); }catch(e){}
+    modal.classList.add('show');
+  }
+  function hideModal(){ modal.classList.remove('show'); }
+  document.getElementById('modalskip').addEventListener('click', function(){ hideModal(); goCheckout(); });
+  modal.addEventListener('click', function(e){ if(e.target===modal) hideModal(); });
+
+  // desktop: mouse leaves toward the top (classic exit intent)
+  document.addEventListener('mouseout', function(e){ if(e.clientY<=0 && !e.relatedTarget) showModal(); });
+  // mobile: fired on scroll-up after decent depth + dwell (proxy for "leaving")
+  var maxY=0, dwell=false;
+  setTimeout(function(){ dwell=true; }, 15000);
+  var lastY = window.scrollY;
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY; maxY=Math.max(maxY,y);
+    var pct = (y+window.innerHeight)/document.body.scrollHeight;
+    if(dwell && pct>0.5 && y < lastY - 40 && maxY>600) showModal();
+    lastY = y;
+  }, {passive:true});
+})();
+</script>
+</body>
+</html>
