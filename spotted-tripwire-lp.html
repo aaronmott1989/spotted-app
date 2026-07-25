@@ -120,6 +120,8 @@
   form.cap input[type=email]:focus{outline:none;border-color:var(--lime);}
   form.cap button{flex:0 0 auto;background:var(--lime);color:var(--lime-ink);font-weight:850;border:0;border-radius:11px;padding:0 18px;font-size:15px;cursor:pointer;}
   .capdone{color:var(--lime);font-weight:700;font-size:14.5px;margin-top:12px;display:none;}
+  .consent{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5;}
+  .consent a{color:var(--muted);text-decoration:underline;}
 
   /* faq */
   details{border:1px solid var(--line);border-radius:12px;padding:0 16px;margin-top:10px;background:var(--card);}
@@ -245,6 +247,7 @@
         <input type="email" required placeholder="you@email.com" aria-label="Your email">
         <button type="submit">Send it</button>
       </form>
+      <p class="consent">By entering your email you agree to receive emails from Spotted. No spam — unsubscribe anytime. See our <a href="/privacy.html">Privacy Policy</a>.</p>
       <div class="capdone" data-capdone>✓ On its way. Check your inbox in a minute.</div>
     </div>
   </div>
@@ -276,7 +279,7 @@
   <div class="wrap">
     <div class="logo" style="font-size:16px;justify-content:center;">Spotted<span class="dot">.</span></div>
     <p style="margin-top:8px;">A Spotted plan for every lifter. Questions? <a href="mailto:support@spotted.coach">support@spotted.coach</a></p>
-    <p style="margin-top:6px;">Secure checkout by Gumroad.</p>
+    <p style="margin-top:6px;">Secure checkout by Gumroad. · <a href="/privacy.html">Privacy Policy</a></p>
   </div>
 </footer>
 
@@ -296,6 +299,7 @@
       <input type="email" required placeholder="you@email.com" aria-label="Your email">
       <button type="submit">Email me the cheat sheet</button>
     </form>
+    <p class="consent">By entering your email you agree to receive emails from Spotted. Unsubscribe anytime. See our <a href="/privacy.html">Privacy Policy</a>.</p>
     <div class="capdone" data-capdone>✓ On its way. Check your inbox in a minute.</div>
     <span class="skip" id="modalskip">No thanks, take me to the $7 plan</span>
   </div>
