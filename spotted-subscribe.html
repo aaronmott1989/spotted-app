@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B0C0D">
+<title>Spotted — Subscribe</title>
+<meta name="description" content="Lock in Spotted. A training app that rebuilds your macros, workouts and cardio the week you stall, and checks in on you so you don't quit. Founding price $14.99/mo for the first 100, for life.">
+<!--
+  Spotted SUBSCRIBE page. Standalone. FAST-PATH to take real subscriptions today.
+  Two LIVE Stripe Payment Links map to the launch founding offer ([[spotted-pricing]]):
+    Founding Monthly $14.99/mo (first 100, for life) -> https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400
+    Founding Annual  $119/yr   ($9.92/mo billed yearly) -> https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403
+  CTAs are plain anchors to the buy.stripe.com Payment Links (Stripe hosts checkout).
+  No app access logic, no Supabase, no webhook here. This is a subscribe surface only.
+  Copy source of truth: SpottedPaywallCopy.md. Design tokens mirror spotted-app-trial-lp.html.
+-->
+<style>
+  :root{
+    --bg:#0B0C0D;
+    --bg2:#111316;
+    --card:#15181B;
+    --line:#23272C;
+    --lime:#8BFF1A;
+    --lime-ink:#0B0C0D;
+    --text:#F4F6F5;
+    --muted:#9AA1A6;
+    --red:#FF5A4D;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{color:inherit;}
+  .wrap{max-width:680px;margin:0 auto;padding:0 20px;}
+  .kicker{text-transform:uppercase;letter-spacing:.2em;font-size:12px;font-weight:800;color:var(--lime);}
+  h1{font-size:clamp(30px,8.4vw,46px);font-weight:850;letter-spacing:-.025em;line-height:1.08;}
+  h1 .hl{color:var(--lime);}
+  h2{font-size:clamp(23px,6.4vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.15;}
+  p{color:var(--text);}
+  .muted{color:var(--muted);}
+
+  /* top bar */
+  header{position:sticky;top:0;z-index:40;background:rgba(11,12,13,.82);backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);}
+  .bar{display:flex;align-items:center;justify-content:space-between;height:56px;}
+  .logo{font-weight:850;letter-spacing:-.02em;font-size:19px;}
+  .logo .dot{color:var(--lime);}
+  .pricepill{background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:13px;padding:7px 13px;border-radius:999px;letter-spacing:.01em;}
+
+  /* founding banner */
+  .foundbar{background:linear-gradient(90deg, rgba(139,255,26,.16), rgba(139,255,26,.05));border-bottom:1px solid var(--line);}
+  .foundbar .in{padding:11px 0;text-align:center;font-size:13px;font-weight:700;letter-spacing:.01em;}
+  .foundbar b{color:var(--lime);}
+
+  /* hero */
+  .hero{padding:38px 0 8px;background:
+      radial-gradient(120% 80% at 12% -10%, rgba(139,255,26,.10), transparent 60%),
+      radial-gradient(90% 60% at 100% 0%, rgba(139,255,26,.05), transparent 55%);}
+  .hero .sub{font-size:clamp(16px,4.4vw,19px);color:var(--text);margin-top:16px;font-weight:600;}
+  .hero .promise{color:var(--muted);margin-top:12px;font-size:15.5px;}
+  .anchorcta{display:inline-flex;align-items:center;gap:9px;margin-top:22px;background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:17px;border-radius:12px;padding:15px 22px;text-decoration:none;box-shadow:0 10px 30px rgba(139,255,26,.22);transition:transform .06s ease;}
+  .anchorcta:active{transform:translateY(1px) scale(.995);}
+
+  section{padding:30px 0;}
+  .lead{font-size:17px;}
+  .divider{height:1px;background:var(--line);margin:0;border:0;}
+
+  /* value list */
+  .stack{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
+  .item{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;}
+  .item .chk{flex:0 0 22px;height:22px;border-radius:7px;background:rgba(139,255,26,.14);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;margin-top:1px;}
+  .item .txt b{display:block;font-size:15.5px;margin-bottom:2px;}
+  .item .txt span{color:var(--muted);font-size:14px;}
+
+  /* pricing */
+  .plans{display:flex;flex-direction:column;gap:16px;margin-top:22px;}
+  .plan{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 20px;display:flex;flex-direction:column;}
+  .plan.featured{border:1.5px solid var(--lime);background:linear-gradient(180deg, rgba(139,255,26,.07), transparent 60%);box-shadow:0 12px 40px rgba(139,255,26,.10);}
+  .plan .tag{position:absolute;top:-11px;left:20px;background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;padding:4px 11px;border-radius:999px;}
+  .plan .name{font-size:14px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);}
+  .plan.featured .name{color:var(--lime);}
+  .plan .price{display:flex;align-items:baseline;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .plan .price .amt{font-size:40px;font-weight:850;letter-spacing:-.03em;line-height:1;}
+  .plan .price .per{font-size:15px;color:var(--muted);font-weight:600;}
+  .plan .price .was{font-size:14px;color:var(--muted);text-decoration:line-through;}
+  .plan .blurb{color:var(--muted);font-size:14px;margin-top:10px;}
+  .plan .cta{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;background:#1c2024;color:var(--text);font-weight:800;font-size:16px;border:1px solid var(--line);border-radius:12px;padding:15px 18px;text-decoration:none;transition:transform .06s ease, border-color .2s ease;}
+  .plan .cta:hover{border-color:var(--lime);}
+  .plan .cta:active{transform:translateY(1px) scale(.995);}
+  .plan.featured .cta{background:var(--lime);color:var(--lime-ink);border-color:var(--lime);box-shadow:0 10px 30px rgba(139,255,26,.22);}
+  .plan .save{margin-top:9px;font-size:12.5px;font-weight:700;color:var(--lime);}
+  .plansnote{text-align:center;color:var(--muted);font-size:13px;margin-top:16px;}
+  .plansnote b{color:var(--text);}
+
+  /* reassurance / guarantee */
+  .guarantee{border:1.5px solid var(--lime);border-radius:var(--radius);padding:20px;background:linear-gradient(180deg, rgba(139,255,26,.06), transparent);margin-top:24px;}
+  .guarantee .g-h{display:flex;align-items:center;gap:10px;font-weight:850;font-size:17px;}
+  .guarantee .seal{flex:0 0 30px;height:30px;border-radius:50%;border:2px solid var(--lime);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
+  .guarantee p{margin-top:10px;color:var(--muted);font-size:14.5px;}
+
+  /* faq */
+  details{border:1px solid var(--line);border-radius:12px;padding:0 16px;margin-top:10px;background:var(--card);}
+  details summary{list-style:none;cursor:pointer;padding:15px 0;font-weight:700;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary .plus{color:var(--lime);font-weight:900;font-size:20px;transition:transform .2s;}
+  details[open] summary .plus{transform:rotate(45deg);}
+  details .ans{color:var(--muted);font-size:14.5px;padding:0 0 16px;}
+
+  footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:12.5px;text-align:center;}
+  footer a{color:var(--muted);text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="logo">Spotted<span class="dot">.</span></div>
+    <a class="pricepill" href="#plans" style="text-decoration:none;">Founding $14.99/mo</a>
+  </div>
+</header>
+
+<!-- FOUNDING BANNER -->
+<div class="foundbar">
+  <div class="wrap in">FOUNDING MEMBER PRICE. <b>FIRST 100 ONLY.</b> Lock in $14.99/mo for life. As long as you stay, your price never goes up.</div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <div class="kicker">Spotted · the training app</div>
+    <h1 style="margin-top:14px;">The plan tells you what to do. <span class="hl">Spotted makes sure you actually do it.</span></h1>
+    <p class="sub">It reads your weekly check-ins and rebuilds your macros and cardio the week you stall, so the plan reacts to your body instead of freezing on day one.</p>
+    <p class="promise">A coach costs $200+ a month. A static plan quits on you the second you stall. Spotted is less than $6 a week for an accountability partner that never looks away.</p>
+    <a class="anchorcta" href="#plans"><span>See the plans</span> <span>&darr;</span></a>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- VALUE STACK -->
+<section style="padding-top:26px;">
+  <div class="wrap">
+    <h2>Everything inside Spotted</h2>
+    <div class="stack">
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>A plan built from your real stats</b><span>Training, macros and cardio from your actual numbers and goal, not a generic split you were already behind on by day one.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Auto-adjusting numbers</b><span>Your macros and cardio rebuild from your real check-in trend, so the week you plateau, the plan changes instead of you quitting.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Spot, your AI accountability partner</b><span>It reads your check-ins, notices when you go quiet, and reaches out during the exact window you normally disappear. This is the piece every other app leaves out.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>A weekly check-in that actually holds you</b><span>The one habit that predicts whether you are still going in six months, built into a rhythm you keep even on the bad weeks.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Mandatory, adjusting cardio</b><span>Dialed to your goal and moved as your progress moves, so fat loss or a clean bulk never stalls out on a number you set months ago.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Everything in one place, on your phone</b><span>Installable app, works offline, no logins to chase.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="plans" style="padding-top:8px;">
+  <div class="wrap">
+    <h2>Pick your plan</h2>
+    <p class="muted" style="margin-top:10px;font-size:15px;">Cancel anytime, right from the app. No calls, no hoops.</p>
+
+    <div class="plans">
+
+      <!-- FOUNDING MONTHLY (featured launch offer) -->
+      <div class="plan featured">
+        <span class="tag">Founding · first 100</span>
+        <div class="name">Founding Monthly</div>
+        <div class="price">
+          <span class="amt">$14.99</span><span class="per">/mo</span>
+          <span class="was">$24.99/mo</span>
+        </div>
+        <div class="blurb">Locked for life. As long as you stay subscribed, your price never goes up, not when we add features, not when the standing price climbs for everyone after you. First 100 members only.</div>
+        <a class="cta" href="https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400"><span>Lock in founding price</span> <span>&rarr;</span></a>
+      </div>
+
+      <!-- FOUNDING ANNUAL -->
+      <div class="plan">
+        <span class="tag" style="background:#1c2024;color:var(--lime);border:1px solid var(--lime);">Best value</span>
+        <div class="name">Founding Annual</div>
+        <div class="price">
+          <span class="amt">$119</span><span class="per">/yr</span>
+        </div>
+        <div class="blurb">The whole app for a year at the founding rate. That's $9.92/mo billed annually, and it stays locked as long as you stay subscribed.</div>
+        <div class="save">Save about $61 a year, roughly 4 months free versus paying monthly.</div>
+        <a class="cta" href="https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403"><span>Get a year</span> <span>&rarr;</span></a>
+      </div>
+
+    </div>
+
+    <p class="plansnote">Both plans auto-renew, $14.99/mo or $119/yr, until you cancel. Cancel anytime in the app.</p>
+
+    <p class="plansnote">A coach for this costs $200 or more a month. Spotted is <b>less than $6 a week</b> for a plan that adapts and a partner that never looks away.</p>
+
+    <!-- REASSURANCE -->
+    <div class="guarantee">
+      <div class="g-h"><span class="seal">&#10003;</span> Cancel anytime. Change your mind in the first two weeks.</div>
+      <p>Cancel anytime, right from the app, no calls and no hoops. Your founding price is locked for life as long as you stay subscribed. Change your mind in the first two weeks and we will refund you, no questions.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div>
+      <details><summary>What does "founding price locked for life" mean? <span class="plus">+</span></summary><div class="ans">The first 100 members pay $14.99/mo, and that rate never goes up as long as you stay subscribed, even after the standing price climbs to $24.99 for everyone who joins after you. Cancel and come back later and you rejoin at the standing price.</div></details>
+      <details><summary>How do I cancel? <span class="plus">+</span></summary><div class="ans">Right from the app, anytime. No calls, no hoops. Change your mind in the first two weeks and we will refund you, no questions.</div></details>
+      <details><summary>Monthly or annual? <span class="plus">+</span></summary><div class="ans">Founding Monthly is $14.99/mo, the lowest monthly price, locked for life. Founding Annual is $119/yr, that's $9.92/mo billed annually and saves about $61 a year, roughly 4 months free versus paying monthly. Both auto-renew until you cancel. Pick whichever fits how you like to pay.</div></details>
+      <details><summary>What do I actually get? <span class="plus">+</span></summary><div class="ans">The full app: a plan built from your real stats, macros and cardio that rebuild when you stall, weekly check-ins, and Spot, your AI accountability partner that reaches out the week you go quiet. Installable on your phone, works offline.</div></details>
+      <details><summary>Is payment secure? <span class="plus">+</span></summary><div class="ans">Yes. Checkout is handled by Stripe, the same payment processor trusted by millions of businesses. We never see or store your card details.</div></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:16px;justify-content:center;">Spotted<span class="dot">.</span></div>
+    <p style="margin-top:8px;">A training app that adapts to you. Questions? <a href="mailto:support@spotted.coach">support@spotted.coach</a></p>
+    <p style="margin-top:6px;"><a href="/spotted-terms.html">Terms</a> &nbsp;·&nbsp; <a href="/spotted-privacy.html">Privacy</a></p>
+    <p style="margin-top:6px;">Secure checkout by Stripe. Cancel anytime.</p>
+  </div>
+</footer>
+
+</body>
+</html>
