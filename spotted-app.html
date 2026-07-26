@@ -303,6 +303,29 @@
   .gate-err { color:#ff6b6b; font-size:13px; min-height:1em; margin:4px 0; }
   .acct-chip { display:flex; gap:10px; align-items:center; }
   .acct-name { font-size:13px; color:var(--muted); font-weight:600; }
+  /* ---- Trial-ended paywall (mirrors the .gate pattern) ---- */
+  body.paywalled .wrap { display:none; }
+  body.paywalled .gate { display:none; }
+  .paywall { display:none; }
+  body.paywalled .paywall { display:flex; min-height:100vh; min-height:100dvh; align-items:center; justify-content:center; padding:calc(24px + var(--safe-t)) 24px calc(24px + var(--safe-b)); }
+  .paywall-card { width:100%; max-width:460px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:28px 24px; box-shadow:var(--shadow); }
+  .paywall-card .wordmark { font-size:30px; margin-bottom:2px; }
+  .pw-banner { margin:16px 0 4px; border:1.5px solid var(--accent); border-radius:12px; padding:12px 14px;
+    background:rgba(139,255,26,.07); font-size:13px; }
+  .pw-banner b { display:block; color:var(--accent); font-size:11px; letter-spacing:.13em; text-transform:uppercase; margin-bottom:4px; }
+  .pw-head { font-size:22px; font-weight:800; letter-spacing:-.02em; margin:18px 0 8px; }
+  .pw-lede { color:var(--muted); font-size:14px; line-height:1.55; margin:0 0 6px; }
+  .pw-saved { color:var(--text); font-size:13px; line-height:1.5; margin:12px 0 18px; border-left:2px solid var(--accent); padding-left:10px; }
+  .pw-cta { display:block; text-align:center; text-decoration:none; font-weight:800; font-size:15px;
+    border-radius:12px; padding:14px 18px; margin-bottom:10px; }
+  .pw-cta-primary { background:var(--accent); color:#0B0C0D; }
+  .pw-cta-secondary { background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  .pw-cta .pw-sub { display:block; font-weight:600; font-size:12px; opacity:.8; margin-top:2px; }
+  .pw-best { display:inline-block; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+    background:var(--accent); color:#0B0C0D; border-radius:6px; padding:2px 6px; margin-left:6px; vertical-align:middle; }
+  .pw-reassure { font-size:12px; color:var(--muted); line-height:1.5; margin:14px 0 0; }
+  .pw-logout { background:none; border:none; color:var(--accent); font:inherit; font-size:13px; font-weight:700; cursor:pointer; padding:0; margin-top:16px; }
   /* ---- Expanded questionnaire (PASS 1) ---- */
   .q-section { border-top:1px solid var(--border); padding-top:18px; margin-top:2px; }
   .q-section:first-of-type { border-top:none; padding-top:0; }
@@ -433,6 +456,25 @@
       <button type="button" class="gate-switch" id="gate-switch">Log in</button>
     </div>
     <div class="gate-note" id="gate-note">Heads up — this is a simple on-device account: it remembers you on this device and captures your info so Spot can reach you. It is <strong>not</strong> secure login yet (no server is verifying your password, and it only lives on this device). Real accounts that follow you across devices arrive with the backend.</div>
+  </div>
+</div>
+
+<!-- ============ TRIAL-ENDED PAYWALL ============ -->
+<div class="paywall" id="paywall">
+  <div class="paywall-card">
+    <div class="wordmark">SPOTTED<span>.</span></div>
+    <div class="pw-banner"><b>Founding member price · first 100 only</b>Lock in $14.99/mo for life. As long as you stay, your price never goes up.</div>
+    <h1 class="pw-head">Your free trial has ended.</h1>
+    <p class="pw-lede">The plan tells you what to do. Spotted is the part that makes sure you actually do it: it reads your weekly check-ins and rebuilds your macros and cardio the week you stall, and Spot reaches out in the exact window you normally go quiet.</p>
+    <p class="pw-saved">Your progress is saved. Subscribe and you pick up right where you left off, nothing lost.</p>
+    <a class="pw-cta pw-cta-primary" id="pw-monthly" href="https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400" target="_blank" rel="noopener">
+      Continue for $14.99/mo<span class="pw-sub">Founding price, locked for life</span>
+    </a>
+    <a class="pw-cta pw-cta-secondary" id="pw-annual" href="https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403" target="_blank" rel="noopener">
+      Go annual for $119/yr<span class="pw-best">Best value</span><span class="pw-sub">About $9.92/mo, roughly two months free</span>
+    </a>
+    <p class="pw-reassure">Cancel anytime, right from the app, no calls and no hoops. Change your mind in the first two weeks and we refund you, no questions.</p>
+    <button type="button" class="pw-logout" id="pw-logout">Log out</button>
   </div>
 </div>
 
@@ -918,6 +960,12 @@
   var LS_CARDIO_PREF = "spotted_cardio"; // {device, speed, incline, minutes}
   var LS_AUTH = "_auth";                 // {hash} — placeholder gate secret, its own key (contract)
   var LS_AUTHED = "spotted_authed";      // session flag: is this device currently logged in?
+  // Trial/subscription clock — a READ-ONLY offline cache of the server-authoritative
+  // columns on members (subscription_status, trial_expires_at). The client can never
+  // WRITE these to the server (column grants revoked; see spotted-backend migration
+  // 2026-07-25_trial_gate.sql). cloudPull refreshes them; start-trial + admin set them.
+  var LS_SUB_STATUS = "spotted_sub_status";     // 'none'|'trial'|'active'|'expired'
+  var LS_TRIAL_EXP = "spotted_trial_expires";   // ISO8601 timestamp or absent
 
   // Placeholder gate hash. NOT real security (documented in the gate note) — a real
   // backend replaces this. It exists only so we never persist the plaintext password.
@@ -1013,6 +1061,9 @@
         if (r.error) return "error";
         if (!r.data) return "empty";
         var d = r.data, app = d.app_state || {};
+        // Cache the server-authoritative trial/subscription clock for the gate (and
+        // for offline). These are READ-only on the client — never pushed back up.
+        cacheSubState(d.subscription_status, d.trial_expires_at);
         suspendPush = true;
         try {
           appStateKeys().forEach(function (k) {
@@ -1035,6 +1086,9 @@
   // if local has unsynced edits, push them up; otherwise take the server as the
   // source of truth. Never blindly overwrites either side.
   function refreshFromCloud() {
+    // The pull may have revealed the trial expired (or a payment activated the account)
+    // while the member was away. Re-gate before repainting the app surfaces.
+    if (gateForSubscription()) return;
     try {
       hydrateForm(); renderAcctChip();
       var t = document.querySelector('.tab-btn[aria-selected="true"]');
@@ -1084,8 +1138,68 @@
     authGen++;                               // cancel any in-flight sign-in/up
     cloudUser = null;
     if (cloudPushTimer) { clearTimeout(cloudPushTimer); cloudPushTimer = null; }
+    clearSubCache();                         // don't leak one account's trial state to the next
     if (!CLOUD) return Promise.resolve();
     return sb.auth.signOut().catch(function () {});
+  }
+
+  /* ---- trial / subscription gate ----------------------------------------
+     The clock is SERVER-authoritative (members.trial_expires_at / subscription_status,
+     client-unwritable). We cache it locally only to render the gate and to honor an
+     already-started trial offline. Expiry is computed from the timestamp, so no cron or
+     reminder job is needed. Grandfathered accounts (status 'none', no trial_expires_at)
+     are NEVER gated — only accounts that actually started a trial can hit the paywall. */
+  function cacheSubState(status, exp) {
+    try {
+      if (status != null) localStorage.setItem(LS_SUB_STATUS, String(status));
+      if (exp) localStorage.setItem(LS_TRIAL_EXP, String(exp));
+      else if (exp === null) localStorage.removeItem(LS_TRIAL_EXP);
+    } catch (e) {}
+  }
+  function clearSubCache() {
+    try { localStorage.removeItem(LS_SUB_STATUS); localStorage.removeItem(LS_TRIAL_EXP); } catch (e) {}
+  }
+  function subStatus() { try { return localStorage.getItem(LS_SUB_STATUS) || "none"; } catch (e) { return "none"; } }
+  function trialExpiresMs() {
+    try { var v = localStorage.getItem(LS_TRIAL_EXP); return v ? Date.parse(v) : NaN; } catch (e) { return NaN; }
+  }
+  // The one rule: an active subscriber is never blocked; an account whose trial clock
+  // has passed is blocked; everyone else (live trial, or grandfathered with no clock)
+  // gets the full app.
+  function isPaywalled() {
+    if (subStatus() === "active") return false;
+    var exp = trialExpiresMs();
+    if (!isNaN(exp) && Date.now() >= exp) return true;
+    return false;
+  }
+  // Ask the backend to open this account's one 24h trial (idempotent server-side).
+  function startTrial() {
+    if (!CLOUD || !cloudUser) return Promise.resolve(false);
+    return sb.auth.getSession().then(function (r) {
+      var tok = r && r.data && r.data.session && r.data.session.access_token;
+      if (!tok) return false;
+      return fetch(SB_URL + "/functions/v1/start-trial", {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + tok }
+      }).then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (j) {
+          if (j && j.ok) { cacheSubState(j.subscription_status, j.trial_expires_at); return true; }
+          return false;
+        });
+    }).catch(function (e) { console.warn("[trial] start failed:", e); return false; });
+  }
+  // Bounded retry for the ONE start-trial call, used only on the trial-signup path.
+  // A single cold-start/network blip on that call would otherwise leave the account
+  // with no clock (permanent-free = lost subscription revenue). start-trial is
+  // idempotent server-side (trial_started_at=is.null), so retrying is harmless, and
+  // this is scoped to fresh signups — it NEVER runs on boot, so grandfathered
+  // accounts (status 'none', no clock) can never be flipped into a trial + paywalled.
+  function startTrialWithRetry(tries) {
+    return startTrial().then(function (ok) {
+      if (ok || tries <= 1) return ok;
+      return new Promise(function (res) { setTimeout(res, 1500); })
+        .then(function () { return startTrialWithRetry(tries - 1); });
+    });
   }
 
   /* ---- progress photos in private cloud storage (bucket "photos") ----
@@ -1605,12 +1719,31 @@
   }
 
   var gateMode = "signup";
+  // Trial-entry path: the app-trial LP hands off to /?trial=1. On that path we run
+  // the email-only signup (spotted-comms-email-only): no phone, no SMS channel — so
+  // it matches the LP's "just your email, no card" promise instead of a 6-field wall.
+  var TRIAL_ENTRY = false;
+  try { TRIAL_ENTRY = location.search.indexOf("trial=1") !== -1; } catch (e) {}
   function applyGateMode() {
     var signup = gateMode === "signup";
     document.querySelectorAll(".signup-only").forEach(function (el) { el.style.display = signup ? "" : "none"; });
     // A hidden-but-required field still blocks form submit — toggle required so a
     // returning member can log in with just email + password.
     document.getElementById("g-first").required = signup;
+    // Email-only trial path: drop the phone field + preferred-contact picker + SMS
+    // consent, and pin the channel to email. Removing phone alone would leave the
+    // "Text/Both" options that then demand a number nobody can enter (new cliff),
+    // so we force email here. Re-applied after the generic show/hide above because
+    // that loop re-shows every .signup-only element on each mode switch.
+    if (signup && TRIAL_ENTRY) {
+      var phoneField = document.getElementById("g-phone").closest(".field");
+      if (phoneField) phoneField.style.display = "none";
+      var chanField = document.getElementById("g-channel").closest(".field");
+      if (chanField) chanField.style.display = "none";
+      document.getElementById("g-channel").value = "email";
+      var smsBox = document.getElementById("g-consent-sms");
+      if (smsBox) { smsBox.checked = false; var smsRow = smsBox.closest(".consent-row"); if (smsRow) smsRow.style.display = "none"; }
+    }
     document.getElementById("gate-submit").textContent = signup ? "Create my account" : "Log in";
     document.getElementById("gate-switch-label").textContent = signup ? "Already have an account?" : "Need an account?";
     document.getElementById("gate-switch").textContent = signup ? "Log in" : "Sign up";
@@ -1625,8 +1758,21 @@
       gateMode = gateMode === "signup" ? "login" : "signup"; applyGateMode();
     });
     form.addEventListener("submit", function (ev) { ev.preventDefault(); submitGate(); });
+    var pwOut = document.getElementById("pw-logout");
+    if (pwOut) pwOut.addEventListener("click", function () {
+      // Leave the paywall without paying: end the session, keep all saved data.
+      cloudSignOut();
+      setAuthed(false);
+      document.body.classList.remove("paywalled");
+      document.body.classList.add("gated");
+      gateMode = "login"; applyGateMode();
+    });
     applyGateMode();
   }
+  // Intentional, read-only test seam. The client gate is UX only (real enforcement is
+  // the Supabase column grants + manual fulfillment), so exposing it is not a security
+  // hole. The self-test drives these to prove the three gate states.
+  window.__spottedGate = { isPaywalled: isPaywalled, apply: gateForSubscription, showPaywall: showPaywall };
   function submitGate() {
     var err = document.getElementById("gate-err");
     var email = trim(document.getElementById("g-email").value);
@@ -1704,7 +1850,11 @@
     // Background: create the real server account and push the record up. Never
     // blocks the UI, so this works offline and the local self-test stays green.
     if (CLOUD) cloudSignUp(email, pass).then(function (r) {
-      if (r.ok && r.session) { cloudPushNow(); }
+      if (r.ok && r.session) {
+        // Push the row FIRST (start-trial PATCHes an existing members row), then open
+        // the account's one 24h trial. Idempotent server-side, so a retry is harmless.
+        cloudPushNow().then(function () { startTrialWithRetry(3); });
+      }
       else if (r.ok && !r.session) {
         try { toast("Account made. Check your email to confirm it and switch on cloud backup — your plan is saved on this device meanwhile.", "err", 6500); } catch (e) {}
       } else if (r.error && /already|registered|exists/i.test(r.error)) {
@@ -1713,9 +1863,64 @@
     });
   }
   function enterApp() {
+    if (gateForSubscription()) return;       // trial ended + not subscribed → paywall, not the app
     document.body.classList.remove("gated");
+    document.body.classList.remove("paywalled");
     renderAcctChip();
     showView(load(LS_PROFILE, null) ? "meals" : "numbers");
+  }
+  // Single subscription guard. Returns true when it took over the screen (paywall).
+  // Call at the top of enterApp() and re-run after each cloudPull (the server clock
+  // may have passed while the member was away/offline).
+  function gateForSubscription() {
+    if (isPaywalled()) { showPaywall(); return true; }
+    document.body.classList.remove("paywalled");  // payment/activation lifts the paywall
+    return false;
+  }
+  function showPaywall() {
+    document.body.classList.remove("gated");
+    document.body.classList.add("paywalled");
+    tagPaywallLinks();
+  }
+  // Tag the Stripe Payment Links with this account's identity so the stripe-webhook
+  // can match the payer back to THIS member (client_reference_id = Supabase user id)
+  // and prefill their email at checkout. Without this, a payment can't be tied to an
+  // account and the paywall can never lift itself. No-op until a real cloud session
+  // exists (grandfathered/offline users never reach a paid checkout anyway).
+  function tagPaywallLinks() {
+    try {
+      if (!cloudUser || !cloudUser.id) return;
+      ["pw-monthly", "pw-annual"].forEach(function (id) {
+        var a = document.getElementById(id);
+        if (!a || a.dataset.reffed === "1") return;
+        var base = (a.getAttribute("href") || "").split("?")[0];
+        if (!base) return;
+        var qs = "client_reference_id=" + encodeURIComponent(cloudUser.id);
+        if (cloudUser.email) qs += "&prefilled_email=" + encodeURIComponent(cloudUser.email);
+        a.setAttribute("href", base + "?" + qs);
+        a.dataset.reffed = "1";
+      });
+    } catch (e) {}
+  }
+  // Returning from a successful Stripe checkout (Payment Link success URL = /?paid=1):
+  // the stripe-webhook flips subscription_status to 'active' server-side. Poll the
+  // members row a few times to beat that webhook race, then lift the paywall. Harmless
+  // no-op when ?paid is absent or the webhook hasn't fired (user stays paywalled — honest).
+  function maybePollPaidReturn() {
+    try { if (location.search.indexOf("paid=1") === -1) return; } catch (e) { return; }
+    if (!CLOUD || !cloudUser) return;
+    var tries = 0;
+    (function poll() {
+      cloudPull().then(function () {
+        if (subStatus() === "active") {
+          document.body.classList.remove("paywalled");
+          try { enterApp(); } catch (e) {}
+          try { toast("You're in. Subscription active — welcome back.", "ok", 5000); } catch (e) {}
+          return;
+        }
+        if (++tries < 10) setTimeout(poll, 3000);
+      });
+    })();
   }
   function renderAcctChip() {
     var m = getMember(); var host = document.getElementById("acct-chip"); if (!host) return;
@@ -3711,6 +3916,14 @@
     gateMode = "signup";
     applyGateMode();
   }
+  // Carry the email the visitor already gave on the LP (localStorage spotted_lead,
+  // set by spotted-app-trial-lp.html on the same origin) so they don't retype it.
+  // No PII travels in the URL. Prefill only; never overwrites what they've typed.
+  try {
+    var _lead = localStorage.getItem("spotted_lead");
+    var _emailInput = document.getElementById("g-email");
+    if (_lead && _emailInput && !_emailInput.value) _emailInput.value = _lead;
+  } catch (e) {}
   // PASS 2: register service worker + manifest here for PWA/offline install.
   initPWA();
   // Background: restore a persisted Supabase session so cloud sync resumes after
@@ -3723,6 +3936,7 @@
       if (s && s.user) {
         cloudUser = s.user;
         if (isAuthed() && getMember()) syncOnEntry();
+        maybePollPaidReturn();               // returning from Stripe (?paid=1) → poll for activation
       }
     }).catch(function () {});
     // Reconnect: flush any photos that couldn't upload while offline.

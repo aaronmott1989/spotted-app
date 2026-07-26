@@ -6,7 +6,7 @@
    Cross-origin requests (CDN pdf.js / tesseract.js used for plan uploads) go
    straight to the network so offline mode never blocks them. Bump CACHE to
    invalidate. */
-var CACHE = "spotted-v6";
+var CACHE = "spotted-v9";
 var ASSETS = [
   "./spotted-app.html",
   "./manifest.webmanifest",
