@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B0C0D">
+<title>Spotted — Try the app free for 24 hours</title>
+<meta name="description" content="The training app that rebuilds your macros, workouts and cardio the week you stall — and checks in on you so you don't quit. Try it free for 24 hours. No card.">
+<!--
+  Spotted APP 24-HOUR FREE TRIAL pre-sell page. ONE file, one offer.
+  Aaron's directive 2026-07-24 (memory: spotted-app-trial-ad): a SEPARATE acquisition line
+  promoting the Spotted APP itself with a 24h free trial (no card) — distinct from the $7/$9 tripwires.
+
+  FLOW: faceless ad -> this LP -> email captured on EVERYONE (non-blocking) -> hand off to the app
+  at app.spotted.coach?trial=1 to start the 24h trial -> after 24h the app paywalls to subscribe
+  ([[spotted-pricing]]: $14.99 founding / $24.99mo / $199yr). Non-converters -> trial-nurture email sequence.
+
+  === MAKE-OR-BREAK DEPENDENCY (read before launch) ===
+  The 24h trial gate DOES NOT EXIST in spotted-app.html yet (verified 2026-07-24). This page is
+  HONEST only once that gate ships. Build spec: SpottedAppTrialGate-Spec.md. Do NOT launch an ad
+  to this page until the gate + a real subscribe/payment path are live and reviewed. Staged only.
+
+  === WIRING TODO (retention + security own this) ===
+  1. LEAD_ENDPOINT below reuses the SAME contract as spotted-tripwire-lp.html:
+     POST JSON { email, offer:"app_trial", source:"app_trial_lp", context, ts } ; any 2xx = success.
+     Fill it from the tripwire page's live LEAD_ENDPOINT value at integration (another agent is
+     standing that endpoint up this session — do NOT create/modify Supabase tables here).
+  2. Capture is NON-BLOCKING: if it fails, the visitor still reaches the app. No secret committed here.
+  3. APP_URL hands off to the live app. It carries ?trial=1 ONLY (no PII in the URL, per security).
+     The email re-entry at app signup is intentional until security clears a prefill method.
+-->
+<style>
+  :root{
+    --bg:#0B0C0D;
+    --bg2:#111316;
+    --card:#15181B;
+    --line:#23272C;
+    --lime:#8BFF1A;
+    --lime-ink:#0B0C0D;
+    --text:#F4F6F5;
+    --muted:#9AA1A6;
+    --red:#FF5A4D;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{color:inherit;}
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px;}
+  .kicker{text-transform:uppercase;letter-spacing:.2em;font-size:12px;font-weight:800;color:var(--lime);}
+  h1{font-size:clamp(30px,8.4vw,46px);font-weight:850;letter-spacing:-.025em;line-height:1.08;}
+  h1 .hl{color:var(--lime);}
+  h2{font-size:clamp(23px,6.4vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.15;}
+  p{color:var(--text);}
+  .muted{color:var(--muted);}
+
+  /* top bar */
+  header{position:sticky;top:0;z-index:40;background:rgba(11,12,13,.82);backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);}
+  .bar{display:flex;align-items:center;justify-content:space-between;height:56px;}
+  .logo{font-weight:850;letter-spacing:-.02em;font-size:19px;}
+  .logo .dot{color:var(--lime);}
+  .pricepill{background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:13px;padding:7px 13px;border-radius:999px;letter-spacing:.01em;}
+
+  /* hero */
+  .hero{padding:38px 0 8px;background:
+      radial-gradient(120% 80% at 12% -10%, rgba(139,255,26,.10), transparent 60%),
+      radial-gradient(90% 60% at 100% 0%, rgba(139,255,26,.05), transparent 55%);}
+  .hero .sub{font-size:clamp(16px,4.4vw,19px);color:var(--text);margin-top:16px;font-weight:600;}
+  .hero .promise{color:var(--muted);margin-top:12px;font-size:15.5px;}
+
+  /* email-capture / trial-start form */
+  .trialform{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
+  .trialform input[type=email]{flex:1 1 220px;min-width:0;background:#0e1012;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:16px 15px;font-size:16px;}
+  .trialform input[type=email]:focus{outline:none;border-color:var(--lime);}
+  .cta{
+    display:flex;align-items:center;justify-content:center;gap:9px;
+    background:var(--lime);color:var(--lime-ink);font-weight:850;font-size:17px;
+    border:0;border-radius:12px;padding:16px 20px;cursor:pointer;text-decoration:none;
+    box-shadow:0 10px 30px rgba(139,255,26,.22);transition:transform .06s ease, box-shadow .2s ease;
+    letter-spacing:.01em;flex:1 1 220px;
+  }
+  .cta:active{transform:translateY(1px) scale(.995);}
+  .cta .arrow{font-weight:900;}
+  .ctanote{text-align:center;color:var(--muted);font-size:13px;margin-top:12px;}
+  .ctanote b{color:var(--text);}
+  .trialdone{display:none;margin-top:16px;background:var(--card);border:1px solid var(--lime);border-radius:12px;padding:16px;}
+  .trialdone b{color:var(--lime);}
+
+  /* trust strip */
+  .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 4px;}
+  .trust .t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;}
+  .trust .t .ic{color:var(--lime);font-size:16px;line-height:1;}
+  .trust .t .lbl{font-size:11.5px;font-weight:700;margin-top:6px;letter-spacing:.01em;}
+  .trust .t .sub{font-size:10.5px;color:var(--muted);margin-top:2px;}
+
+  section{padding:30px 0;}
+  .lead{font-size:17px;}
+  .divider{height:1px;background:var(--line);margin:0;border:0;}
+
+  /* value list */
+  .stack{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
+  .item{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;}
+  .item .chk{flex:0 0 22px;height:22px;border-radius:7px;background:rgba(139,255,26,.14);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;margin-top:1px;}
+  .item .txt b{display:block;font-size:15.5px;margin-bottom:2px;}
+  .item .txt span{color:var(--muted);font-size:14px;}
+
+  /* how the trial works */
+  .steps{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
+  .step{display:flex;gap:14px;align-items:flex-start;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px;}
+  .step .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--lime);color:var(--lime-ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
+  .step .txt b{display:block;font-size:15.5px;margin-bottom:2px;}
+  .step .txt span{color:var(--muted);font-size:14px;}
+
+  /* honesty / no-card box */
+  .guarantee{border:1.5px solid var(--lime);border-radius:var(--radius);padding:20px;background:linear-gradient(180deg, rgba(139,255,26,.06), transparent);}
+  .guarantee .g-h{display:flex;align-items:center;gap:10px;font-weight:850;font-size:17px;}
+  .guarantee .seal{flex:0 0 30px;height:30px;border-radius:50%;border:2px solid var(--lime);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
+  .guarantee p{margin-top:10px;color:var(--muted);font-size:14.5px;}
+
+  /* price-after box */
+  .why{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+  .why b{color:var(--text);}
+
+  /* faq */
+  details{border:1px solid var(--line);border-radius:12px;padding:0 16px;margin-top:10px;background:var(--card);}
+  details summary{list-style:none;cursor:pointer;padding:15px 0;font-weight:700;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary .plus{color:var(--lime);font-weight:900;font-size:20px;transition:transform .2s;}
+  details[open] summary .plus{transform:rotate(45deg);}
+  details .ans{color:var(--muted);font-size:14.5px;padding:0 0 16px;}
+
+  .finalcta{text-align:center;padding:34px 0 40px;}
+  .finalcta h2{margin-bottom:18px;}
+  .finalcta .trialform{max-width:520px;margin-left:auto;margin-right:auto;}
+
+  footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:12.5px;text-align:center;}
+  footer a{color:var(--muted);text-decoration:underline;}
+
+  /* sticky mobile CTA */
+  .stickybuy{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(11,12,13,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 20px calc(10px + env(safe-area-inset-bottom));transform:translateY(120%);transition:transform .25s ease;}
+  .stickybuy.show{transform:translateY(0);}
+  .stickybuy .cta{font-size:16px;padding:14px 18px;width:100%;}
+
+  /* exit-intent modal */
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.66);display:none;align-items:flex-end;justify-content:center;}
+  .modal.show{display:flex;}
+  .sheet{background:var(--bg2);border-top-left-radius:22px;border-top-right-radius:22px;border:1px solid var(--line);border-bottom:0;width:100%;max-width:640px;padding:24px 22px calc(26px + env(safe-area-inset-bottom));animation:up .25s ease;}
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet h3{font-size:21px;font-weight:850;letter-spacing:-.01em;}
+  .sheet p{color:var(--muted);font-size:14.5px;margin-top:8px;}
+  .sheet .skip{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:14px;text-decoration:underline;cursor:pointer;}
+  @media(min-width:560px){.modal{align-items:center;}.sheet{border-radius:22px;border-bottom:1px solid var(--line);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="logo">Spotted<span class="dot">.</span></div>
+    <div class="pricepill">24h free · no card</div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <div class="kicker">Spotted · the training app</div>
+    <h1 style="margin-top:14px;">A static plan quits on you. <span class="hl">This one adapts.</span></h1>
+    <p class="sub">Spotted rebuilds your macros, workouts and cardio the week your progress stalls — and checks in on you so you don't drift off.</p>
+    <p class="promise">Most plans are right for about two weeks, then your body adapts and the plan goes stale. Spotted reads your weekly check-ins and adjusts. Try the whole app free for 24 hours. No card, no catch — just your email.</p>
+
+    <form class="trialform" data-trial>
+      <input type="email" required placeholder="you@email.com" aria-label="Your email">
+      <button type="submit" class="cta"><span>Start my 24-hour free trial</span> <span class="arrow">&rarr;</span></button>
+    </form>
+    <div class="ctanote"><b>Full access for 24 hours.</b> No card required. Keep any plan you build.</div>
+    <div class="trialdone" data-trialdone>
+      <b>You're in.</b> Opening the app so you can set up your account and start your free 24 hours. If it doesn't open, <a data-applink style="color:var(--lime)" href="#">tap here</a>.
+    </div>
+
+    <div class="trust">
+      <div class="t"><div class="ic">&#9201;</div><div class="lbl">24 hours free</div><div class="sub">Full app, no card</div></div>
+      <div class="t"><div class="ic">&#8635;</div><div class="lbl">Adapts to you</div><div class="sub">Re-runs when you stall</div></div>
+      <div class="t"><div class="ic">&#9993;</div><div class="lbl">Spot checks in</div><div class="sub">So you don't quit</div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- PROBLEM -->
+<section>
+  <div class="wrap">
+    <h2>The plan didn't stop working. It stopped fitting you.</h2>
+    <p class="lead muted" style="margin-top:14px;">You start strong. Then the scale parks, the lifts flatten, and the plan that felt perfect three weeks ago is now just a page you're arguing with. That's not a discipline problem — your body adapted and nobody handed you the next move. Spotted is the app that hands you the next move automatically, and nudges you through the weeks people usually quit.</p>
+  </div>
+</section>
+
+<!-- VALUE STACK -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>What you get the second you're in</h2>
+    <div class="stack">
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Your numbers, done for you</b><span>Calories, protein, carbs, fats and cardio calculated from your body and your goal — cut, lean bulk or hold. No spreadsheet, no guessing.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>A plan that rebuilds itself</b><span>Log your weekly check-in. When your weight trend stalls, Spotted recalculates your macros and cardio for you — the part a printed plan can never do.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Workouts matched to your gear</b><span>Full gym, home setup or minimal equipment — the app builds around what you actually have, and works around injuries you flag.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Cardio that's dosed, not guessed</b><span>Set day by day to move you toward your goal without frying your recovery.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Spot, your accountability partner</b><span>Checks in on you, reads your trend instead of one bad morning, and shows up in the exact weeks most people go quiet.</span></div></div>
+      <div class="item"><div class="chk">&#10003;</div><div class="txt"><b>Check-ins, photos and trends in one place</b><span>Weight, sessions, progress photos and workout history tracked together so you read the direction, not the noise.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW THE TRIAL WORKS -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>How the free trial works</h2>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="txt"><b>Enter your email &mdash; no card</b><span>Takes a few seconds. You set up your account in the app; we never ask for a payment method to start.</span></div></div>
+      <div class="step"><div class="n">2</div><div class="txt"><b>Get full access for 24 hours</b><span>The whole app unlocks. Build your plan, log a check-in, meet Spot &mdash; use everything, not a stripped-down demo.</span></div></div>
+      <div class="step"><div class="n">3</div><div class="txt"><b>After 24 hours, decide</b><span>When the trial ends, you choose to continue as a member or walk away. No surprise charge, because we never took a card. Anything you built stays saved for when you come back.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- NO-CARD / HONESTY -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="guarantee">
+      <div class="g-h"><span class="seal">&#10003;</span> No card. No surprise charge.</div>
+      <p><b style="color:var(--text)">We don't ask for a payment method to start your trial.</b> That means there's nothing to "forget to cancel." After 24 hours the app simply asks if you want to keep going. If it isn't for you, close the tab &mdash; you'll never be billed a cent. The only risk here is another month of arguing with a plan that stopped fitting you.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICE AFTER -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <div class="why">
+      <h2 style="font-size:22px;">If you stay</h2>
+      <p class="muted" style="margin-top:12px;">A coach costs $200+ a month, mostly to reset your numbers and talk you off the ledge. Spotted does the adapting for you at <b>$24.99/month</b> &mdash; less than $6 a week for a plan that rebuilds itself and a partner that checks in. Right now the first <b>founding members lock it at $14.99/month for life</b>, or $199 a year. But only after your free 24 hours &mdash; and only if you want to.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="padding-top:6px;">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div>
+      <details><summary>Do I need a credit card to start? <span class="plus">+</span></summary><div class="ans">No. You start with just your email. We don't ask for a payment method until you decide to continue after your 24 hours, so there's nothing to cancel.</div></details>
+      <details><summary>What happens when the 24 hours are up? <span class="plus">+</span></summary><div class="ans">The app asks if you want to keep going as a member. If you do, you pick a plan then. If you don't, nothing happens &mdash; you're never charged. Anything you set up stays saved.</div></details>
+      <details><summary>Is this the full app or a limited demo? <span class="plus">+</span></summary><div class="ans">The full app. You get your real numbers, adaptive workouts and cardio, check-ins, progress photos and Spot &mdash; everything a paying member gets, for 24 hours.</div></details>
+      <details><summary>I train at home with barely any equipment. Will it work? <span class="plus">+</span></summary><div class="ans">Yes. It builds your workouts around the equipment you actually have &mdash; full gym, a few dumbbells, or bodyweight &mdash; and works around injuries you flag.</div></details>
+      <details><summary>What does it cost if I stay? <span class="plus">+</span></summary><div class="ans">$24.99/month, or $199/year. Founding members right now lock it at $14.99/month for life. You only see that after your free trial, and only if you choose to continue.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<div class="finalcta">
+  <div class="wrap">
+    <h2>Stop arguing with a stale plan. Try the one that adapts.</h2>
+    <form class="trialform" data-trial>
+      <input type="email" required placeholder="you@email.com" aria-label="Your email">
+      <button type="submit" class="cta"><span>Start my 24-hour free trial</span> <span class="arrow">&rarr;</span></button>
+    </form>
+    <div class="ctanote">Full app access for 24 hours &middot; no card required</div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:16px;justify-content:center;">Spotted<span class="dot">.</span></div>
+    <p style="margin-top:8px;">A training app that adapts to you. Questions? <a href="mailto:support@spotted.coach">support@spotted.coach</a></p>
+    <p style="margin-top:6px;">By starting a trial you agree to our <a href="https://app.spotted.coach/spotted-terms.html" data-terms target="_blank" rel="noopener">Terms</a> and <a href="https://app.spotted.coach/spotted-privacy.html" data-privacy target="_blank" rel="noopener">Privacy Policy</a>.</p>
+  </div>
+</footer>
+
+<!-- sticky mobile CTA -->
+<div class="stickybuy" id="stickybuy">
+  <div class="wrap" style="padding:0;">
+    <a class="cta" href="#top-trial"><span>Start my 24-hour free trial</span> <span class="arrow">&rarr;</span></a>
+  </div>
+</div>
+
+<!-- exit-intent capture modal -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3>Before you go &mdash; want the 24 hours free?</h3>
+    <p>Leave your email and we'll hold the door open. No card, full app for a day. If it's not for you, you're never charged &mdash; you just walk away.</p>
+    <form class="trialform" data-trial style="margin-top:16px;">
+      <input type="email" required placeholder="you@email.com" aria-label="Your email">
+      <button type="submit" class="cta"><span>Start my free trial</span> <span class="arrow">&rarr;</span></button>
+    </form>
+    <span class="skip" id="modalskip">No thanks</span>
+  </div>
+</div>
+
+<span id="top-trial"></span>
+<script>
+(function(){
+  "use strict";
+
+  // ---- WIRING: reuse the SAME capture endpoint/contract as spotted-tripwire-lp.html ----
+  // Fill from the tripwire page's live LEAD_ENDPOINT at integration (another agent owns it this session).
+  // Contract: POST JSON { email, offer, source, context, ts } ; any 2xx = success. empty = capture stubbed.
+  var LEAD_ENDPOINT = "https://mtukfjdzsgsqcdfgmsir.supabase.co/functions/v1/capture-lead"; // KEEP IN SYNC with tripwire LP
+
+  // ---- Where the trial actually starts. The app owns the 24h gate (see SpottedAppTrialGate-Spec.md). ----
+  // Carries ?trial=1 ONLY — no PII in the URL (security). The app starts the 24h clock on fresh signup.
+  var APP_URL = "https://app.spotted.coach/?trial=1";
+
+  var OFFER = "app_trial";
+  var SOURCE = "app_trial_lp";
+
+  // ---- email capture (non-blocking) then hand off to the app ----
+  function capture(email, ctx){
+    var payload = { email: email, offer: OFFER, source: SOURCE, context: ctx, ts: Date.now() };
+    try{ localStorage.setItem('spotted_lead', email); }catch(e){}
+    try{ if(window.fbq) fbq('track','Lead'); }catch(e){}
+    if(!LEAD_ENDPOINT) return Promise.resolve(); // stubbed until wired
+    return fetch(LEAD_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).catch(function(){});
+  }
+
+  function startTrial(){
+    try{ if(window.fbq) fbq('track','StartTrial'); }catch(e){}
+    location.href = APP_URL;
+  }
+
+  // wire every trial form on the page (hero, final, exit modal)
+  document.querySelectorAll('form[data-trial]').forEach(function(f){
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var input = f.querySelector('input[type=email]');
+      var email = (input.value||'').trim();
+      if(!email || email.indexOf('@')<1) { input.focus(); return; }
+      var inModal = !!f.closest('#modal');
+      capture(email, inModal ? 'exit_modal' : 'primary');
+      try{ localStorage.setItem('spotted_captured','1'); }catch(e){}
+      // show the "you're in" confirmation on the primary form, then hand off
+      var done = document.querySelector('[data-trialdone]');
+      if(done && !inModal){ f.style.display='none'; done.style.display='block'; }
+      setTimeout(startTrial, inModal ? 150 : 700);
+    });
+  });
+
+  // manual "tap here" fallback link in the confirmation
+  var applink = document.querySelector('[data-applink]');
+  if(applink) applink.addEventListener('click', function(e){ e.preventDefault(); startTrial(); });
+
+  // sticky CTA + top-anchor jump focuses the hero email field
+  document.querySelectorAll('a[href="#top-trial"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      window.scrollTo({top:0, behavior:'smooth'});
+      var first = document.querySelector('form[data-trial] input[type=email]');
+      if(first) setTimeout(function(){ first.focus(); }, 350);
+    });
+  });
+
+  // ---- sticky mobile CTA: show after hero scrolls out ----
+  var sticky = document.getElementById('stickybuy');
+  var hero = document.querySelector('.hero');
+  if('IntersectionObserver' in window && hero){
+    new IntersectionObserver(function(ents){
+      ents.forEach(function(en){ sticky.classList.toggle('show', !en.isIntersecting); });
+    },{rootMargin:'-60px 0px 0px 0px'}).observe(hero);
+  }
+
+  // ---- exit-intent: capture the leavers once per visitor ----
+  var modal = document.getElementById('modal');
+  var shown = false;
+  function alreadyDone(){ try{ return localStorage.getItem('spotted_captured')==='1' || sessionStorage.getItem('spotted_modal')==='1'; }catch(e){ return false; } }
+  function showModal(){
+    if(shown || alreadyDone()) return;
+    shown = true;
+    try{ sessionStorage.setItem('spotted_modal','1'); }catch(e){}
+    modal.classList.add('show');
+  }
+  function hideModal(){ modal.classList.remove('show'); }
+  document.getElementById('modalskip').addEventListener('click', hideModal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) hideModal(); });
+
+  // desktop: mouse leaves toward the top
+  document.addEventListener('mouseout', function(e){ if(e.clientY<=0 && !e.relatedTarget) showModal(); });
+  // mobile: scroll-up after depth + dwell (proxy for leaving)
+  var maxY=0, dwell=false;
+  setTimeout(function(){ dwell=true; }, 15000);
+  var lastY = window.scrollY;
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY; maxY=Math.max(maxY,y);
+    var pct = (y+window.innerHeight)/document.body.scrollHeight;
+    if(dwell && pct>0.5 && y < lastY - 40 && maxY>600) showModal();
+    lastY = y;
+  }, {passive:true});
+})();
+</script>
+</body>
+</html>
