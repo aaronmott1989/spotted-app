@@ -65,6 +65,10 @@
       radial-gradient(90% 60% at 100% 0%, rgba(139,255,26,.05), transparent 55%);}
   .hero .sub{font-size:clamp(16px,4.4vw,19px);color:var(--text);margin-top:16px;font-weight:600;}
   .hero .promise{color:var(--muted);margin-top:12px;font-size:15.5px;}
+  .cred{display:flex;gap:11px;align-items:flex-start;margin-top:16px;padding:13px 15px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--lime);border-radius:12px;}
+  .cred .cbadge{flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--lime);}
+  .cred p{font-size:13.5px;color:var(--muted);line-height:1.5;}
+  .cred p b{color:var(--text);}
 
   /* cta */
   .cta{
@@ -152,6 +156,23 @@
   .sheet .skip{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:14px;text-decoration:underline;cursor:pointer;}
   @media(min-width:560px){.modal{align-items:center;}.sheet{border-radius:22px;border-bottom:1px solid var(--line);}}
 </style>
+<!-- Meta Pixel — Spotted pixel 27497094636650153 (real ID, confirmed in memory spotted-meta-pixel.md). Base + PageView + ViewContent; InitiateCheckout fires on buy click in the script below. -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window,document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','27497094636650153');
+fbq('track','PageView');
+fbq('track','ViewContent',{content_name:'Spotted Tripwire LP'});
+</script>
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel -->
 </head>
 <body>
 
@@ -169,6 +190,10 @@
     <h1 id="k-h1" style="margin-top:14px;">Cuts don't fail in the kitchen. <span class="hl">They fail at week 6.</span></h1>
     <p class="sub" id="k-sub">6 weeks to visible definition — while you hold the strength you built.</p>
     <p class="promise" id="k-promise">You don't lose muscle because you cut. You lose it because nobody tells you what to change in week 6 when the scale stalls. This is the dated, day-by-day plan that does.</p>
+    <div class="cred" id="k-cred">
+      <span class="cbadge">Real method</span>
+      <p>This is the exact cut a <b>natural competitor</b> runs on himself — the same weekly adjustments, dialed in for a real lifter, not numbers a free calculator spat out and walked away from.</p>
+    </div>
     <div style="margin-top:24px;">
       <a class="cta" data-buy href="#"><span>Start The Cut — $7</span> <span class="arrow">→</span></a>
       <div class="ctanote"><b>Instant download.</b> 30-day, no-questions money-back guarantee.</div>
@@ -211,7 +236,7 @@
   <div class="wrap">
     <div class="guarantee">
       <div class="g-h"><span class="seal">✓</span> Your $7 is protected.</div>
-      <p><b style="color:var(--text)">30-day, 100% money-back, no-questions-asked.</b> Read it, use it, and if it doesn't give you a clearer cut than whatever you're doing now, email <a style="color:var(--lime)" href="mailto:support@spotted.coach">support@spotted.coach</a> and get every cent back. You keep the plan. The only risk here is another month of guessing.</p>
+      <p><b style="color:var(--text)">30-day, 100% money-back, no-questions-asked.</b> Read it, use it, and if it doesn't give you a clearer cut than whatever you're doing now, email <a style="color:var(--lime)" href="mailto:support@spotted.coach">support@spotted.coach</a> and get every cent back. You keep the plan. Spotted is new, and that's exactly why the guarantee is this blunt: I'd rather refund your $7 than have you guess through another month. The risk is mine, not yours.</p>
     </div>
   </div>
 </section>
@@ -328,6 +353,7 @@
       buy: "Get The Macro Blueprint — $7",
       probH: "The number was right. For two weeks.",
       probB: "Stop guessing what to eat. Stop training off a number some website spat out two years ago. Put in your stats and your goal, walk away in one minute knowing exactly what to eat and how much cardio to do — built for a real lifter, not a generic chart. Then the second you drop fat or add muscle, that perfect number goes wrong. This gives you the number and the rule for the next one.",
+      cred: 'This is the exact system a <b>natural competitor</b> runs his own numbers on — the same weekly adjustments, dialed in for a real lifter, not numbers a free calculator spat out and walked away from.',
       whyH: "Why $7?",
       why: 'A coach charges $100–$200 a month partly just to set and re-set these numbers. Every free calculator hands you a number and abandons you — and that number is wrong inside three weeks. This is <b>$7, once,</b> and it does the thing the free ones refuse to: it gives you the number and the rule for the next one.',
       appH: "When you stall for the third or fourth time, the Spotted app takes over.",
@@ -365,6 +391,7 @@
     set("k-why", o.why); set("k-app-h", o.appH); set("k-app-b", o.appB);
     set("k-opt-h", o.optH); set("k-opt-p", o.optP); set("k-m-h", o.mH); set("k-m-p", o.mP);
     set("k-final", o.final);
+    if(o.cred){ var credEl=document.querySelector("#k-cred p"); if(credEl) credEl.innerHTML=o.cred; }
     var whyH = document.querySelector("#k-why"); // why heading text stays "Why $7?"
     // stack
     if(o.stack){ document.getElementById("k-stack").innerHTML = o.stack.map(function(s){

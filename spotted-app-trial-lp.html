@@ -72,6 +72,10 @@
       radial-gradient(90% 60% at 100% 0%, rgba(139,255,26,.05), transparent 55%);}
   .hero .sub{font-size:clamp(16px,4.4vw,19px);color:var(--text);margin-top:16px;font-weight:600;}
   .hero .promise{color:var(--muted);margin-top:12px;font-size:15.5px;}
+  .cred{display:flex;gap:11px;align-items:flex-start;margin-top:16px;padding:13px 15px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--lime);border-radius:12px;}
+  .cred .cbadge{flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--lime);}
+  .cred p{font-size:13.5px;color:var(--muted);line-height:1.5;}
+  .cred p b{color:var(--text);}
 
   /* email-capture / trial-start form */
   .trialform{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
@@ -156,6 +160,23 @@
   .sheet .skip{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:14px;text-decoration:underline;cursor:pointer;}
   @media(min-width:560px){.modal{align-items:center;}.sheet{border-radius:22px;border-bottom:1px solid var(--line);}}
 </style>
+<!-- Meta Pixel — Spotted pixel 27497094636650153 (real ID, confirmed in memory spotted-meta-pixel.md). Base + PageView + ViewContent; Lead fires on CTA submit in the script below. -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window,document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','27497094636650153');
+fbq('track','PageView');
+fbq('track','ViewContent',{content_name:'Spotted App Trial LP'});
+</script>
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel -->
 </head>
 <body>
 
@@ -172,7 +193,11 @@
     <div class="kicker">Spotted · the training app</div>
     <h1 style="margin-top:14px;">A static plan quits on you. <span class="hl">This one adapts.</span></h1>
     <p class="sub">Spotted rebuilds your macros, workouts and cardio the week your progress stalls — and checks in on you so you don't drift off.</p>
-    <p class="promise">Most plans are right for about two weeks, then your body adapts and the plan goes stale. Spotted reads your weekly check-ins and adjusts. Try the whole app free for 24 hours. No card, no catch — just your email.</p>
+    <p class="promise">Most plans are right for about two weeks, then your body adapts and the plan goes stale. Spotted reads your weekly check-ins and adjusts. Try the whole app free for 24 hours. No card, no catch — just your email and a quick account so your plan saves.</p>
+    <div class="cred">
+      <span class="cbadge">Real method</span>
+      <p>Built on the exact system a <b>natural competitor</b> runs on himself — the same weekly adjustments that keep a plan fitting you, now done for you automatically instead of on a whiteboard.</p>
+    </div>
 
     <form class="trialform" data-trial>
       <input type="email" required placeholder="you@email.com" aria-label="Your email">
