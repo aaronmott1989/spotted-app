@@ -15,10 +15,10 @@
   at app.spotted.coach?trial=1 to start the 24h trial -> after 24h the app paywalls to subscribe
   ([[spotted-pricing]]: $14.99 founding / $24.99mo / $199yr). Non-converters -> trial-nurture email sequence.
 
-  === MAKE-OR-BREAK DEPENDENCY (read before launch) ===
-  The 24h trial gate DOES NOT EXIST in spotted-app.html yet (verified 2026-07-24). This page is
-  HONEST only once that gate ships. Build spec: SpottedAppTrialGate-Spec.md. Do NOT launch an ad
-  to this page until the gate + a real subscribe/payment path are live and reviewed. Staged only.
+  === GATE STATUS: LIVE (verified 2026-07-26) ===
+  The 24h trial gate IS live in spotted-app.html (server-authoritative trial_expires_at +
+  Stripe pay->unlock webhook). Chief + security-compliance both passed all three artifacts on
+  2026-07-26. This page is honest. Launch is gated only on the ad-leak watchdog running.
 
   === WIRING TODO (retention + security own this) ===
   1. LEAD_ENDPOINT below reuses the SAME contract as spotted-tripwire-lp.html:
@@ -191,8 +191,8 @@ src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/><
 <div class="hero">
   <div class="wrap">
     <div class="kicker">Spotted · the training app</div>
-    <h1 style="margin-top:14px;">A static plan quits on you. <span class="hl">This one adapts.</span></h1>
-    <p class="sub">Spotted rebuilds your macros, workouts and cardio the week your progress stalls — and checks in on you so you don't drift off.</p>
+    <h1 id="k-h1" style="margin-top:14px;">A static plan quits on you. <span class="hl">This one adapts.</span></h1>
+    <p class="sub" id="k-sub">Spotted rebuilds your macros, workouts and cardio the week your progress stalls — and checks in on you so you don't drift off.</p>
     <p class="promise">Most plans are right for about two weeks, then your body adapts and the plan goes stale. Spotted reads your weekly check-ins and adjusts. Try the whole app free for 24 hours. No card, no catch — just your email and a quick account so your plan saves.</p>
     <div class="cred">
       <span class="cbadge">Real method</span>
@@ -268,7 +268,7 @@ src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/><
   <div class="wrap">
     <div class="why">
       <h2 style="font-size:22px;">If you stay</h2>
-      <p class="muted" style="margin-top:12px;">A coach costs $200+ a month, mostly to reset your numbers and talk you off the ledge. Spotted does the adapting for you at <b>$24.99/month</b> &mdash; less than $6 a week for a plan that rebuilds itself and a partner that checks in. Right now the first <b>founding members lock it at $14.99/month for life</b>, or $199 a year. But only after your free 24 hours &mdash; and only if you want to.</p>
+      <p class="muted" style="margin-top:12px;">A coach costs $200+ a month, mostly to reset your numbers and talk you off the ledge. Spotted does the adapting for you at <b>$24.99/month</b> &mdash; less than $6 a week for a plan that rebuilds itself and a partner that checks in. Right now the first <b>founding members lock it at $14.99/month for life</b>, or $119 a year. But only after your free 24 hours &mdash; and only if you want to.</p>
     </div>
   </div>
 </section>
@@ -282,7 +282,7 @@ src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/><
       <details><summary>What happens when the 24 hours are up? <span class="plus">+</span></summary><div class="ans">The app asks if you want to keep going as a member. If you do, you pick a plan then. If you don't, nothing happens &mdash; you're never charged. Anything you set up stays saved.</div></details>
       <details><summary>Is this the full app or a limited demo? <span class="plus">+</span></summary><div class="ans">The full app. You get your real numbers, adaptive workouts and cardio, check-ins, progress photos and Spot &mdash; everything a paying member gets, for 24 hours.</div></details>
       <details><summary>I train at home with barely any equipment. Will it work? <span class="plus">+</span></summary><div class="ans">Yes. It builds your workouts around the equipment you actually have &mdash; full gym, a few dumbbells, or bodyweight &mdash; and works around injuries you flag.</div></details>
-      <details><summary>What does it cost if I stay? <span class="plus">+</span></summary><div class="ans">$24.99/month, or $199/year. Founding members right now lock it at $14.99/month for life. You only see that after your free trial, and only if you choose to continue.</div></details>
+      <details><summary>What does it cost if I stay? <span class="plus">+</span></summary><div class="ans">$24.99/month, or $199/year. Founding members right now lock it at $14.99/month &mdash; or $119/year &mdash; for life. You only see that after your free trial, and only if you choose to continue.</div></details>
     </div>
   </div>
 </section>
@@ -343,6 +343,31 @@ src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/><
 
   var OFFER = "app_trial";
   var SOURCE = "app_trial_lp";
+
+  // ---- HERO A/B/C headline test (single variable: H1 + subhead + primary CTA copy only) ----
+  // ?v=b|c overrides ONLY the hero text + CTA label. ?v=a (or missing/unknown) leaves the current
+  // hero untouched. Trial flow, capture, app hand-off and pixel are identical across all variants.
+  function qp(n){ return new URLSearchParams(location.search).get(n); }
+  function setHTML(id, html){ var el=document.getElementById(id); if(el && html!=null) el.innerHTML=html; }
+  var HERO = {
+    b: {
+      h1: 'Everybody trains hard for two weeks. Spotted is what keeps you going after that.',
+      sub: 'Your full plan — macros, workouts, cardio — built in minutes, plus Spot, an accountability partner that checks in through the exact weeks people quit. Free for 24 hours, no card.',
+      cta: 'Start my free 24 hours'
+    },
+    c: {
+      h1: 'Your whole plan — food, lifts, cardio — built for you in about 60 seconds.',
+      sub: 'Tell Spotted your body and your goal and it hands you exactly what to eat and how to train today. No spreadsheets, no guessing. Full app free for 24 hours, no card.',
+      cta: 'Build my plan free'
+    }
+  };
+  var vkey = (qp("v") || "a").toLowerCase();
+  var hv = HERO[vkey];
+  if(hv){
+    setHTML("k-h1", hv.h1);
+    setHTML("k-sub", hv.sub);
+    document.querySelectorAll('.cta span:first-child').forEach(function(s){ s.textContent = hv.cta; });
+  }
 
   // ---- email capture (non-blocking) then hand off to the app ----
   function capture(email, ctx){
