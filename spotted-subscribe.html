@@ -10,7 +10,7 @@
   Spotted SUBSCRIBE page. Standalone. FAST-PATH to take real subscriptions today.
   Two LIVE Stripe Payment Links map to the launch founding offer ([[spotted-pricing]]):
     Founding Monthly $14.99/mo (first 100, for life) -> https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400
-    Founding Annual  $119/yr   ($9.92/mo billed yearly) -> https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403
+    Founding Annual  $199/yr   ($16.58/mo billed yearly; lock the rate before monthly rises to $28.99 after the first 100) -> https://buy.stripe.com/7sYcN7dd17k7bGHelJbo402
   CTAs are plain anchors to the buy.stripe.com Payment Links (Stripe hosts checkout).
   No app access logic, no Supabase, no webhook here. This is a subscribe surface only.
   Copy source of truth: SpottedPaywallCopy.md. Design tokens mirror spotted-app-trial-lp.html.
@@ -114,6 +114,24 @@
   footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:12.5px;text-align:center;}
   footer a{color:var(--muted);text-decoration:underline;}
 </style>
+
+<!-- Meta Pixel Code -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '27497094636650153');
+  fbq('track', 'PageView');
+  fbq('track', 'ViewContent', {content_name:'Spotted Founding Subscription', content_category:'subscription'});
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=27497094636650153&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel Code -->
 </head>
 <body>
 
@@ -171,27 +189,26 @@
         <div class="name">Founding Monthly</div>
         <div class="price">
           <span class="amt">$14.99</span><span class="per">/mo</span>
-          <span class="was">$24.99/mo</span>
+          <span class="was">$28.99/mo</span>
         </div>
         <div class="blurb">Locked for life. As long as you stay subscribed, your price never goes up, not when we add features, not when the standing price climbs for everyone after you. First 100 members only.</div>
-        <a class="cta" href="https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400"><span>Lock in founding price</span> <span>&rarr;</span></a>
+        <a class="cta" href="https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400" onclick="fbq('track','InitiateCheckout',{value:14.99,currency:'USD',content_name:'Founding Monthly'});"><span>Lock in founding price</span> <span>&rarr;</span></a>
       </div>
 
       <!-- FOUNDING ANNUAL -->
       <div class="plan">
-        <span class="tag" style="background:#1c2024;color:var(--lime);border:1px solid var(--lime);">Best value</span>
+        <span class="tag" style="background:#1c2024;color:var(--lime);border:1px solid var(--lime);">Lock it in</span>
         <div class="name">Founding Annual</div>
         <div class="price">
-          <span class="amt">$119</span><span class="per">/yr</span>
+          <span class="amt">$199</span><span class="per">/yr</span>
         </div>
-        <div class="blurb">The whole app for a year at the founding rate. That's $9.92/mo billed annually, and it stays locked as long as you stay subscribed.</div>
-        <div class="save">Save about $61 a year, roughly 4 months free versus paying monthly.</div>
-        <a class="cta" href="https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403"><span>Get a year</span> <span>&rarr;</span></a>
+        <div class="blurb">The whole app for a year in one payment. That's $16.58/mo billed annually. Lock this rate in before monthly rises to $28.99 once the first 100 founders fill.</div>
+        <a class="cta" href="https://buy.stripe.com/7sYcN7dd17k7bGHelJbo402" onclick="fbq('track','InitiateCheckout',{value:199.00,currency:'USD',content_name:'Founding Annual'});"><span>Get a year</span> <span>&rarr;</span></a>
       </div>
 
     </div>
 
-    <p class="plansnote">Both plans auto-renew, $14.99/mo or $119/yr, until you cancel. Cancel anytime in the app.</p>
+    <p class="plansnote">Both plans auto-renew, $14.99/mo or $199/yr, until you cancel. Cancel anytime in the app.</p>
 
     <p class="plansnote">A coach for this costs $200 or more a month. Spotted is <b>less than $6 a week</b> for a plan that adapts and a partner that never looks away.</p>
 
@@ -208,9 +225,9 @@
   <div class="wrap">
     <h2>Questions</h2>
     <div>
-      <details><summary>What does "founding price locked for life" mean? <span class="plus">+</span></summary><div class="ans">The first 100 members pay $14.99/mo, and that rate never goes up as long as you stay subscribed, even after the standing price climbs to $24.99 for everyone who joins after you. Cancel and come back later and you rejoin at the standing price.</div></details>
+      <details><summary>What does "founding price locked for life" mean? <span class="plus">+</span></summary><div class="ans">The first 100 members pay $14.99/mo, and that rate never goes up as long as you stay subscribed, even after the standing price climbs to $28.99 for everyone who joins after you. Cancel and come back later and you rejoin at the standing price.</div></details>
       <details><summary>How do I cancel? <span class="plus">+</span></summary><div class="ans">Right from the app, anytime. No calls, no hoops. Change your mind in the first two weeks and we will refund you, no questions.</div></details>
-      <details><summary>Monthly or annual? <span class="plus">+</span></summary><div class="ans">Founding Monthly is $14.99/mo, the lowest monthly price, locked for life. Founding Annual is $119/yr, that's $9.92/mo billed annually and saves about $61 a year, roughly 4 months free versus paying monthly. Both auto-renew until you cancel. Pick whichever fits how you like to pay.</div></details>
+      <details><summary>Monthly or annual? <span class="plus">+</span></summary><div class="ans">Founding Monthly is $14.99/mo, the lowest monthly price, locked for life. Founding Annual is $199/yr, that's $16.58/mo billed once a year, and it locks that rate in before monthly rises to $28.99 once the first 100 founders fill. Both auto-renew until you cancel. Pick whichever fits how you like to pay.</div></details>
       <details><summary>What do I actually get? <span class="plus">+</span></summary><div class="ans">The full app: a plan built from your real stats, macros and cardio that rebuild when you stall, weekly check-ins, and Spot, your AI accountability partner that reaches out the week you go quiet. Installable on your phone, works offline.</div></details>
       <details><summary>Is payment secure? <span class="plus">+</span></summary><div class="ans">Yes. Checkout is handled by Stripe, the same payment processor trusted by millions of businesses. We never see or store your card details.</div></details>
     </div>

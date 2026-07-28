@@ -470,8 +470,8 @@
     <a class="pw-cta pw-cta-primary" id="pw-monthly" href="https://buy.stripe.com/14A28t7SH9sf6mn1yXbo400" target="_blank" rel="noopener">
       Continue for $14.99/mo<span class="pw-sub">Founding price, locked for life</span>
     </a>
-    <a class="pw-cta pw-cta-secondary" id="pw-annual" href="https://buy.stripe.com/cNi4gB3CrgUH4efa5tbo403" target="_blank" rel="noopener">
-      Go annual for $119/yr<span class="pw-best">Best value</span><span class="pw-sub">About $9.92/mo, roughly two months free</span>
+    <a class="pw-cta pw-cta-secondary" id="pw-annual" href="https://buy.stripe.com/7sYcN7dd17k7bGHelJbo402" target="_blank" rel="noopener">
+      Go annual for $199/yr<span class="pw-best">Lock it in</span><span class="pw-sub">$16.58/mo billed yearly, before monthly rises to $28.99</span>
     </a>
     <p class="pw-reassure">Cancel anytime, right from the app, no calls and no hoops. Change your mind in the first two weeks and we refund you, no questions.</p>
     <button type="button" class="pw-logout" id="pw-logout">Log out</button>
@@ -1743,6 +1743,14 @@
       document.getElementById("g-channel").value = "email";
       var smsBox = document.getElementById("g-consent-sms");
       if (smsBox) { smsBox.checked = false; var smsRow = smsBox.closest(".consent-row"); if (smsRow) smsRow.style.display = "none"; }
+      // Trial hand-off from the app-trial LP already captured the email to
+      // localStorage.spotted_lead (no PII in the URL). Prefill it here so the user
+      // doesn't re-type at peak intent — only when the field is empty, so we never
+      // clobber anything they've started typing.
+      var emailEl = document.getElementById("g-email");
+      if (emailEl && !trim(emailEl.value)) {
+        try { var lead = localStorage.getItem("spotted_lead"); if (lead) emailEl.value = lead; } catch (e) {}
+      }
     }
     document.getElementById("gate-submit").textContent = signup ? "Create my account" : "Log in";
     document.getElementById("gate-switch-label").textContent = signup ? "Already have an account?" : "Need an account?";
